@@ -2530,30 +2530,30 @@ async def add_product_photo(message:Message,state:FSMContext):
 
     await message.answer("Введите название RU")
 
-    await state.set_state(AdminAddProductStates.wait_title_ru)
+    await state.set_state(AdminAddProductStates.waiting_title_ru)
 
 
-@dp.message(AdminAddProductStates.wait_title_ru)
+@dp.message(AdminAddProductStates.waiting_title_ru)
 async def add_product_title_ru(message:Message,state:FSMContext):
 
     await state.update_data(title_ru=message.text)
 
     await message.answer("Введите название UZ")
 
-    await state.set_state(AdminAddProductStates.wait_title_uz)
+    await state.set_state(AdminAddProductStates.waiting_title_uz)
 
 
-@dp.message(AdminAddProductStates.wait_title_uz)
+@dp.message(AdminAddProductStates.waiting_title_uz)
 async def add_product_title_uz(message:Message,state:FSMContext):
 
     await state.update_data(title_uz=message.text)
 
     await message.answer("Введите цену")
 
-    await state.set_state(AdminAddProductStates.wait_price)
+    await state.set_state(AdminAddProductStates.waiting_price)
 
 
-@dp.message(AdminAddProductStates.wait_price)
+@dp.message(AdminAddProductStates.waiting_price)
 async def add_product_price(message:Message,state:FSMContext):
 
     price=int(message.text)
@@ -2562,10 +2562,10 @@ async def add_product_price(message:Message,state:FSMContext):
 
     await message.answer("Введите описание")
 
-    await state.set_state(AdminAddProductStates.wait_description)
+    await state.set_state(AdminAddProductStates.waiting_desc_ru)
 
 
-@dp.message(AdminAddProductStates.wait_description)
+@dp.message(AdminAddProductStates.waiting_desc_ru)
 async def add_product_description(message:Message,state:FSMContext):
 
     data=await state.get_data()
