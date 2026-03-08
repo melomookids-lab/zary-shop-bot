@@ -2514,14 +2514,14 @@ async def admin_products(cb: CallbackQuery):
 @dp.callback_query(F.data=="add_product")
 async def add_product_start(cb: CallbackQuery,state:FSMContext):
 
-    await state.set_state(AdminProductStates.wait_photo)
+    await state.set_state(AdminAddProductStates.waiting_photo)
 
     await cb.message.answer("Отправьте фото товара")
 
     await cb.answer()
 
 
-@dp.message(AdminProductStates.wait_photo, F.photo)
+@dp.message(AdminAddProductStates.waiting_photo, F.photo)
 async def add_product_photo(message:Message,state:FSMContext):
 
     photo = message.photo[-1].file_id
@@ -2530,30 +2530,30 @@ async def add_product_photo(message:Message,state:FSMContext):
 
     await message.answer("Введите название RU")
 
-    await state.set_state(AdminProductStates.wait_title_ru)
+    await state.set_state(AdminAddProductStates.wait_title_ru)
 
 
-@dp.message(AdminProductStates.wait_title_ru)
+@dp.message(AdminAddProductStates.wait_title_ru)
 async def add_product_title_ru(message:Message,state:FSMContext):
 
     await state.update_data(title_ru=message.text)
 
     await message.answer("Введите название UZ")
 
-    await state.set_state(AdminProductStates.wait_title_uz)
+    await state.set_state(AdminAddProductStates.wait_title_uz)
 
 
-@dp.message(AdminProductStates.wait_title_uz)
+@dp.message(AdminAddProductStates.wait_title_uz)
 async def add_product_title_uz(message:Message,state:FSMContext):
 
     await state.update_data(title_uz=message.text)
 
     await message.answer("Введите цену")
 
-    await state.set_state(AdminProductStates.wait_price)
+    await state.set_state(AdminAddProductStates.wait_price)
 
 
-@dp.message(AdminProductStates.wait_price)
+@dp.message(AdminAddProductStates.wait_price)
 async def add_product_price(message:Message,state:FSMContext):
 
     price=int(message.text)
@@ -2562,10 +2562,10 @@ async def add_product_price(message:Message,state:FSMContext):
 
     await message.answer("Введите описание")
 
-    await state.set_state(AdminProductStates.wait_description)
+    await state.set_state(AdminAddProductStates.wait_description)
 
 
-@dp.message(AdminProductStates.wait_description)
+@dp.message(AdminAddProductStates.wait_description)
 async def add_product_description(message:Message,state:FSMContext):
 
     data=await state.get_data()
