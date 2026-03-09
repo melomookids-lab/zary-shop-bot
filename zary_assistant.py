@@ -7195,13 +7195,17 @@ def register_routers() -> None:
     dp.include_router(orders_router)
     dp.include_router(reviews_router)
     dp.include_router(admin_router)
+    dp.include_router(fallback_router)
 
 
 # ============================================================
 # FINAL FALLBACK
 # ============================================================
 
-@dp.message()
+fallback_router = Router()
+
+
+@fallback_router.message()
 async def fallback_handler(message: Message) -> None:
     await message.answer(
         t(message.from_user.id, "send_start_again"),
