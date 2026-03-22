@@ -6483,6 +6483,8 @@ function buyNow(id){
 function createFlowers() {
   const container = document.querySelector(".flowers");
 
+  if (!container) return;
+
   for (let i = 0; i < 25; i++) {
     const flower = document.createElement("div");
     flower.className = "flower";
@@ -6495,8 +6497,9 @@ function createFlowers() {
   }
 }
 
-createFlowers();
+window.onload = createFlowers;
 </script>
+
 </body>
 </html>
 """.replace("__CHANNEL_LINK__", CHANNEL_LINK or "").replace("__INSTAGRAM_LINK__", INSTAGRAM_LINK or "").replace("__YOUTUBE_LINK__", YOUTUBE_LINK or "")
@@ -6523,54 +6526,61 @@ def admin_page_template(title: str, body: str) -> str:
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>{title}</title>
-      <style>
+<style>
+
+body {
+    margin:0;
+    background: linear-gradient(180deg, #fff0f5 0%, #ffe4ec 50%, #fff7f0 100%);
+    font-family:Arial,Helvetica,sans-serif;
+    color:#161616;
+}
+
+.wrap {
+    max-width:1240px;
+    margin:0 auto;
+    padding:20px;
+}
+
 .flowers {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
 }
 
 .flower {
-  position: absolute;
-  top: -50px;
-  width: 50px;
-height: 50px;
+    position: absolute;
+    top: -50px;
+    width: 20px;
+    height: 20px;
 
-  background:
-    radial-gradient(circle at center, #ffd700 30%, transparent 31%),
-    radial-gradient(circle, #ffffff 60%, transparent 61%);
+    background: radial-gradient(circle, #ffb6c1 40%, transparent 41%);
+    border-radius: 50%;
+    opacity: 0.8;
 
-  border-radius: 50%;
-  box-shadow:
-    0 0 10px rgba(255, 215, 0, 0.6),
-    0 0 20px rgba(255, 255, 255, 0.4);
-
-  animation: fall linear infinite;
+    animation: fall linear infinite;
 }
 
 @keyframes fall {
-  0% {
-    transform: translateY(-50px) rotate(0deg);
-  }
-  100% {
-    transform: translateY(100vh) rotate(360deg);
-  }
+    0% {
+        transform: translateY(-50px);
+    }
+    100% {
+        transform: translateY(100vh);
+    }
 }
-        body {
-          margin:0;
-   background: linear-gradient(180deg, #fff0f5 0%, #ffe4ec 50%, #fff7f0 100%);
-          font-family:Arial,Helvetica,sans-serif;
-          color:#161616;
-        }
-        .wrap {
-          max-width:1240px;
-          margin:0 auto;
-          padding:20px;
-        }
+
+.wrap {
+    max-width:1240px;
+    margin:0 auto;
+    padding:20px;
+    position: relative;
+    z-index: 1;
+}
         .top {
           background:linear-gradient(180deg,#f8f3ea 0%,#efe6d7 100%);
           color:#111;
