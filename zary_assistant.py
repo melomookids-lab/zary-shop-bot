@@ -6143,15 +6143,23 @@ function applyTexts(){
 
 function buildFilters(){
   const box = document.getElementById("filters");
-  const categories = ["all", "new", "hits", "sale", "limited", "school", "casual"];
+  const categories = [
+  {key:"all", name:"Все"},
+  {key:"new", name:"Новинки"},
+  {key:"hits", name:"Хиты"},
+  {key:"sale", name:"Скидки"},
+  {key:"limited", name:"Лимит"},
+  {key:"school", name:"Школа"},
+  {key:"casual", name:"Повседневное"}
+];
   box.innerHTML = "";
 
   categories.forEach(cat => {
     const btn = document.createElement("button");
-    btn.className = "filter-btn" + (state.activeCategory === cat ? " active" : "");
-    btn.textContent = TXT["category_" + cat] || cat;
+    btn.className = "filter-btn" + (state.activeCategory === cat.key ? " active" : "");
+    btn.textContent = cat.name;
     btn.onclick = () => {
-      state.activeCategory = cat;
+      state.activeCategory = cat.key;
       buildFilters();
       applyFilter();
     };
@@ -6434,7 +6442,11 @@ document.getElementById("clearBtn").onclick = () => {
 };
 
 document.getElementById("checkoutBtn").onclick = () => {
-  showNotice(TXT.startCheckoutMsg);
+  if (!tg) return;
+
+tg.sendData(JSON.stringify({
+    action: "checkout"
+}));
 };
 
 applyTexts();
@@ -6464,6 +6476,27 @@ function buyNow(id){
     }));
 }
 </script>
+
+<div class="flowers"></div>
+
+<script>
+function createFlowers() {
+  const container = document.querySelector(".flowers");
+
+  for (let i = 0; i < 25; i++) {
+    const flower = document.createElement("div");
+    flower.className = "flower";
+
+    flower.style.left = Math.random() * 100 + "%";
+    flower.style.animationDuration = (5 + Math.random() * 5) + "s";
+    flower.style.opacity = Math.random();
+
+    container.appendChild(flower);
+  }
+}
+
+createFlowers();
+</script>
 </body>
 </html>
 """.replace("__CHANNEL_LINK__", CHANNEL_LINK or "").replace("__INSTAGRAM_LINK__", INSTAGRAM_LINK or "").replace("__YOUTUBE_LINK__", YOUTUBE_LINK or "")
@@ -6491,18 +6524,54 @@ def admin_page_template(title: str, body: str) -> str:
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>{title}</title>
       <style>
-        body {{
+.flowers {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.flower {
+  position: absolute;
+  top: -50px;
+  width: 50px;
+height: 50px;
+
+  background:
+    radial-gradient(circle at center, #ffd700 30%, transparent 31%),
+    radial-gradient(circle, #ffffff 60%, transparent 61%);
+
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px rgba(255, 215, 0, 0.6),
+    0 0 20px rgba(255, 255, 255, 0.4);
+
+  animation: fall linear infinite;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(-50px) rotate(0deg);
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+  }
+}
+        body {
           margin:0;
-   background:#f5efe6;
+   background: linear-gradient(180deg, #fff0f5 0%, #ffe4ec 50%, #fff7f0 100%);
           font-family:Arial,Helvetica,sans-serif;
           color:#161616;
-        }}
-        .wrap {{
+        }
+        .wrap {
           max-width:1240px;
           margin:0 auto;
           padding:20px;
-        }}
-        .top {{
+        }
+        .top {
           background:linear-gradient(180deg,#f8f3ea 0%,#efe6d7 100%);
           color:#111;
           border-radius:22px;
@@ -6510,22 +6579,23 @@ def admin_page_template(title: str, body: str) -> str:
           margin-bottom:18px;
           box-shadow:0 8px 24px rgba(0,0,0,.10);
           border:1px solid #e8dbc2;
-        .brand {{
-        font-size:34px;
-        font-weight:900;
-        letter-spacing:0.12em;
+        .brand {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
 
-        background:linear-gradient(180deg,#f8e6b0,#caa85a,#f5e2a3);
-        -webkit-background-clip:text;
-        -webkit-text-fill-color:transparent;
+  background: linear-gradient(180deg, #ffd700, #f5c542, #d4af37);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 
-        text-align:center;
+  text-align: center;
 
-        text-shadow:
-        0 2px 4px rgba(0,0,0,0.25),
-        0 4px 12px rgba(0,0,0,0.15);
-        }}
-        .nav {{
+  text-shadow:
+    0 2px 4px rgba(0,0,0,0.25),
+    0 6px 12px rgba(212,175,55,0.5),
+    0 0 20px rgba(255,215,0,0.7);
+}
+        .nav {
           display:flex;
           flex-wrap:wrap;
           gap:10px;
@@ -6540,7 +6610,7 @@ def admin_page_template(title: str, body: str) -> str:
           font-weight:700;
           font-size:13px;
         }}
-        .card {{
+        .card {
           background:#fffdfa;
           border-radius:20px;
           padding:18px;
@@ -6670,9 +6740,18 @@ async def api_shop_products(request: web.Request) -> web.Response:
     rows = get_published_products()
 
     result: list[dict[str, Any]] = []
-    for row in rows:
-        photo_url = await get_file_url_by_file_id(row["photo_file_id"] or "")
-        result.append(product_row_to_api_dict(row, lang, photo_url=photo_url))
+
+for row in rows:
+    file_id = row["photo_file_id"]
+
+    photo_url = await get_file_url_by_file_id(file_id)
+
+    print("PHOTO URL:", photo_url)  # 👈 проверка
+
+    if not photo_url:
+        photo_url = "https://via.placeholder.com/300x400?text=Нет+фото"
+
+    result.append(product_row_to_api_dict(row, lang, photo_url=photo_url))
 
     return web.json_response(result)
 
@@ -7209,6 +7288,26 @@ def register_routers() -> None:
 # ============================================================
 
 fallback_router = Router()
+import json
+from aiogram.types import Message
+
+@fallback_router.message()
+async def webapp_handler(message: Message):
+    if not message.web_app_data:
+        return
+
+    data = json.loads(message.web_app_data.data)
+
+    action = data.get("action")
+
+    if action == "add_to_cart":
+        await message.answer("✅ Товар добавлен в корзину")
+
+    elif action == "buy_now":
+        await message.answer("🛒 Покупка оформлена")
+
+    elif action == "checkout":
+        await message.answer("📦 Начали оформление заказа")
 
 
 @fallback_router.message()
