@@ -4022,25 +4022,7 @@ async def admin_delete_product_start(message: Message, state: FSMContext) -> Non
             f"#{row['id']} | {row['title_ru']} | {fmt_sum(row['price'])} | stock {row['stock_qty']} | {pub}"
         )
 
-    lines += ["", t(message.from_user.id, "admin_choose_product_id")]
-
-    await state.clear()
-    await state.set_state(AdminDeleteProductStates.product_id)
-    await message.answer(
-        "\n".join(lines),
-        reply_markup=admin_cancel_keyboard(message.from_user.id),
-    )
-
-
-@admin_router.message(AdminDeleteProductStates.product_id)
-async def admin_delete_product_pick_id(message: Message, state: FSMContext) -> None:
-    if await maybe_cancel_state(message, state, back_to_admin=True):
-        return
-
-    text = (message.text or "").strip()
-    if not text.isdigit():
-        await message.answer(t(message.from_user.id, "admin_invalid_id"))
-        return
+    admin_choose_product_id
 
     product_id = int(text)
     product = get_product_by_id(product_id)
@@ -6262,8 +6244,8 @@ function renderProducts(){
         <div class="meta">${TXT.qty}</div>
       </div>
       <div class="action-row">
-        <button class="buy-btn"${Number(product.stock_qty) <= 0 ? " disabled" : ""}>${TXT.addToCart}</button>
-        <button class="quick-btn"${Number(product.stock_qty) <= 0 ? " disabled" : ""}>${TXT.buyNow}</button>
+        <button class="buy-btn" ${Number(product.stock_qty) <= 0 ? "disabled" : ""} onclick="addToCart(${product.id})">${TXT.addToCart}</button>
+        <button class="quick-btn" ${Number(product.stock_qty) <= 0 ? "disabled" : ""} onclick="buyNow(${product.id})">${TXT.buyNow}</button>
       </div>
     `;
 
@@ -6461,6 +6443,26 @@ renderSocials();
 loadProducts();
 loadCart();
 loadReviews();
+function addToCart(id){
+    if (!tg) return;
+
+    tg.sendData(JSON.stringify({
+        action: "add_to_cart",
+        product_id: id,
+        qty: 1
+    }));
+
+    showNotice("Товар добавлен в корзину");
+}
+
+function buyNow(id){
+    if (!tg) return;
+
+    tg.sendData(JSON.stringify({
+        action: "buy_now",
+        product_id: id
+    }));
+}
 </script>
 </body>
 </html>
@@ -6491,7 +6493,7 @@ def admin_page_template(title: str, body: str) -> str:
       <style>
         body {{
           margin:0;
-          background:#f7f4ee;
+   background:#f5efe6;
           font-family:Arial,Helvetica,sans-serif;
           color:#161616;
         }}
@@ -6508,16 +6510,20 @@ def admin_page_template(title: str, body: str) -> str:
           margin-bottom:18px;
           box-shadow:0 8px 24px rgba(0,0,0,.10);
           border:1px solid #e8dbc2;
-        }}
         .brand {{
-          font-size:30px;
-          font-weight:900;
-          letter-spacing:.07em;
-          color:#c8a96b;
-          text-shadow:
-            0 1px 0 #fff3d6,
-            0 2px 0 #ecd3a2,
-            0 3px 8px rgba(0,0,0,.12);
+        font-size:34px;
+        font-weight:900;
+        letter-spacing:0.12em;
+
+        background:linear-gradient(180deg,#f8e6b0,#caa85a,#f5e2a3);
+        -webkit-background-clip:text;
+        -webkit-text-fill-color:transparent;
+
+        text-align:center;
+
+        text-shadow:
+        0 2px 4px rgba(0,0,0,0.25),
+        0 4px 12px rgba(0,0,0,0.15);
         }}
         .nav {{
           display:flex;
