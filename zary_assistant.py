@@ -1749,19 +1749,23 @@ def build_shop_html() -> str:
   --bg-2: #fff5ea;
   --bg-3: #fff9f5;
   --glass: rgba(255,255,255,.62);
-  --glass-strong: rgba(255,255,255,.78);
-  --line: rgba(201,166,111,.22);
+  --glass-strong: rgba(255,255,255,.80);
+  --line: rgba(68, 120, 96, .16);
   --text: #241b14;
   --muted: #7f7167;
+
   --brand: #1f4b3a;
-  --brand-dark: #17372b;
-  --shadow: 0 18px 50px rgba(110,79,32,.10);
-  --shadow-soft: 0 10px 28px rgba(92,62,24,.07);
+  --brand-dark: #163629;
+  --brand-mid: #2f6a53;
+  --brand-soft: #dfeee8;
+  --brand-soft-2: #edf7f2;
+
+  --shadow: 0 18px 50px rgba(70, 86, 73, .10);
+  --shadow-soft: 0 10px 28px rgba(70, 86, 73, .07);
+
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
-  --accent-1: #d4a63c;
-  --accent-2: #9f6a15;
 }}
 
 * {{
@@ -1777,8 +1781,8 @@ body {{
   color: var(--text);
   font-family: Inter, Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at 12% 12%, rgba(255,228,170,.28), transparent 22%),
-    radial-gradient(circle at 86% 20%, rgba(196,222,210,.18), transparent 22%),
+    radial-gradient(circle at 12% 12%, rgba(255,228,170,.22), transparent 22%),
+    radial-gradient(circle at 86% 20%, rgba(196,222,210,.20), transparent 22%),
     radial-gradient(circle at 78% 84%, rgba(232,214,255,.12), transparent 18%),
     linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%);
   overflow-x: hidden;
@@ -1790,7 +1794,7 @@ body::before {{
   inset: -15%;
   background:
     radial-gradient(circle at 30% 35%, rgba(255,255,255,.78), transparent 16%),
-    radial-gradient(circle at 75% 22%, rgba(255,238,204,.34), transparent 17%);
+    radial-gradient(circle at 75% 22%, rgba(239,248,243,.30), transparent 17%);
   filter: blur(30px);
   pointer-events: none;
   z-index: 0;
@@ -1849,8 +1853,8 @@ body::before {{
   padding: 28px 20px 22px;
   border-radius: 0 0 34px 34px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,.85), rgba(255,248,236,.76)),
-    radial-gradient(circle at 82% 18%, rgba(196,222,210,.16), transparent 38%);
+    linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,248,236,.78)),
+    radial-gradient(circle at 82% 18%, rgba(196,222,210,.18), transparent 38%);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid rgba(255,255,255,.66);
@@ -1930,11 +1934,11 @@ body::before {{
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  color: #fff;
+  color: #ffffff;
   font-weight: 900;
   font-size: 13px;
-  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
-  box-shadow: 0 12px 24px rgba(159,106,21,.28);
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
+  box-shadow: 0 12px 24px rgba(31,75,58,.24);
 }}
 
 .layout {{
@@ -1980,10 +1984,10 @@ body::before {{
   border-radius: 999px;
   font-weight: 700;
   font-size: 13px;
-  background: rgba(255,255,255,.84);
-  color: #533f26;
-  border: 1px solid rgba(200,169,107,.30);
-  box-shadow: 0 6px 18px rgba(188,158,101,.08);
+  background: rgba(255,255,255,.86);
+  color: #4f4034;
+  border: 1px solid rgba(68,120,96,.16);
+  box-shadow: 0 6px 18px rgba(95,120,108,.07);
   transition: .24s ease;
 }}
 
@@ -1992,8 +1996,9 @@ body::before {{
 }}
 
 .filter-btn.active {{
-  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
-  color: #fff;
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
+  color: #ffffff;
+  border-color: rgba(31,75,58,.24);
 }}
 
 .catalog {{
@@ -2031,8 +2036,8 @@ body::before {{
   aspect-ratio: 1 / 1.08;
   border-radius: 18px;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255,255,255,.84), rgba(248,228,213,.96));
-  border: 1px solid rgba(200,169,107,.15);
+  background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(247,238,231,.96));
+  border: 1px solid rgba(68,120,96,.10);
 }}
 
 .photo img {{
@@ -2105,14 +2110,14 @@ body::before {{
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  background: rgba(255,255,255,.84);
+  background: rgba(255,255,255,.86);
   color: #493626;
-  border: 1px solid rgba(200,169,107,.28);
+  border: 1px solid rgba(68,120,96,.16);
   transition: .2s ease;
 }}
 
 .size-btn.active {{
-  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
   color: #fff;
 }}
 
@@ -2127,8 +2132,8 @@ body::before {{
   display: flex;
   align-items: center;
   border-radius: 999px;
-  background: rgba(255,255,255,.82);
-  border: 1px solid rgba(200,169,107,.26);
+  background: rgba(255,255,255,.84);
+  border: 1px solid rgba(68,120,96,.14);
   overflow: hidden;
 }}
 
@@ -2175,24 +2180,24 @@ body::before {{
 }}
 
 .quick-btn {{
-  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
   color: #fff;
-  box-shadow: 0 12px 24px rgba(159,106,21,.22);
+  box-shadow: 0 12px 24px rgba(31,75,58,.20);
 }}
 
 .checkout-btn {{
   width: 100%;
-  background: #181311;
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
   color: #fff;
-  box-shadow: 0 12px 24px rgba(0,0,0,.12);
+  box-shadow: 0 12px 24px rgba(31,75,58,.20);
 }}
 
 .clear-btn {{
   width: 100%;
   margin-top: 10px;
-  background: rgba(255,255,255,.84);
+  background: rgba(255,255,255,.86);
   color: #2a2018;
-  border: 1px solid rgba(200,169,107,.28);
+  border: 1px solid rgba(68,120,96,.16);
 }}
 
 .buy-btn:disabled, .quick-btn:disabled {{
@@ -2211,8 +2216,8 @@ body::before {{
 }}
 
 .cart-item {{
-  background: rgba(255,255,255,.78);
-  border: 1px solid rgba(200,169,107,.20);
+  background: rgba(255,255,255,.80);
+  border: 1px solid rgba(68,120,96,.14);
   border-radius: 18px;
   padding: 12px;
 }}
@@ -2238,7 +2243,7 @@ body::before {{
 .cart-remove {{
   border: none;
   cursor: pointer;
-  background: rgba(255,255,255,.90);
+  background: rgba(255,255,255,.92);
   width: 34px;
   height: 34px;
   border-radius: 12px;
@@ -2252,7 +2257,7 @@ body::before {{
 }}
 
 .summary {{
-  border-top: 1px solid rgba(200,169,107,.18);
+  border-top: 1px solid rgba(68,120,96,.12);
   margin-top: 14px;
   padding-top: 14px;
   display: flex;
@@ -2269,7 +2274,7 @@ body::before {{
 
 .checkout-box {{
   margin-top: 16px;
-  border-top: 1px solid rgba(200,169,107,.18);
+  border-top: 1px solid rgba(68,120,96,.12);
   padding-top: 14px;
 }}
 
@@ -2303,8 +2308,8 @@ body::before {{
 }}
 
 .review-card {{
-  background: rgba(255,255,255,.78);
-  border: 1px solid rgba(200,169,107,.18);
+  background: rgba(255,255,255,.80);
+  border: 1px solid rgba(68,120,96,.14);
   border-radius: 18px;
   padding: 14px;
 }}
@@ -2337,9 +2342,9 @@ body::before {{
   border-radius: 999px;
   font-weight: 800;
   font-size: 13px;
-  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+  background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark));
   color: #fff;
-  box-shadow: 0 12px 24px rgba(159,106,21,.18);
+  box-shadow: 0 12px 24px rgba(31,75,58,.16);
 }}
 
 .notice {{
