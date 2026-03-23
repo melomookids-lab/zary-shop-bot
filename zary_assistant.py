@@ -1746,23 +1746,22 @@ def build_shop_html() -> str:
 <style>
 :root {{
   --bg-1: #fffaf3;
-  --bg-2: #fff4ea;
-  --bg-3: #fff8f6;
-  --glass: rgba(255,255,255,.60);
-  --glass-strong: rgba(255,255,255,.76);
+  --bg-2: #fff5ea;
+  --bg-3: #fff9f5;
+  --glass: rgba(255,255,255,.62);
+  --glass-strong: rgba(255,255,255,.78);
   --line: rgba(201,166,111,.22);
   --text: #241b14;
   --muted: #7f7167;
-  --gold-1: #fff8d6;
-  --gold-2: #ffe38a;
-  --gold-3: #efba3f;
-  --gold-4: #c9851d;
-  --gold-5: #7d4808;
-  --shadow: 0 18px 50px rgba(110,79,32,.12);
-  --shadow-soft: 0 10px 28px rgba(92,62,24,.08);
+  --brand: #1f4b3a;
+  --brand-dark: #17372b;
+  --shadow: 0 18px 50px rgba(110,79,32,.10);
+  --shadow-soft: 0 10px 28px rgba(92,62,24,.07);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
+  --accent-1: #d4a63c;
+  --accent-2: #9f6a15;
 }}
 
 * {{
@@ -1778,10 +1777,10 @@ body {{
   color: var(--text);
   font-family: Inter, Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at 12% 12%, rgba(255,227,160,.45), transparent 24%),
-    radial-gradient(circle at 88% 18%, rgba(229,186,219,.22), transparent 24%),
-    radial-gradient(circle at 75% 80%, rgba(180,166,255,.14), transparent 18%),
-    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
+    radial-gradient(circle at 12% 12%, rgba(255,228,170,.28), transparent 22%),
+    radial-gradient(circle at 86% 20%, rgba(196,222,210,.18), transparent 22%),
+    radial-gradient(circle at 78% 84%, rgba(232,214,255,.12), transparent 18%),
+    linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%);
   overflow-x: hidden;
 }}
 
@@ -1790,9 +1789,8 @@ body::before {{
   position: fixed;
   inset: -15%;
   background:
-    radial-gradient(circle at 32% 35%, rgba(255,255,255,.80), transparent 16%),
-    radial-gradient(circle at 76% 22%, rgba(255,236,194,.45), transparent 18%),
-    radial-gradient(circle at 58% 72%, rgba(232,213,255,.12), transparent 16%);
+    radial-gradient(circle at 30% 35%, rgba(255,255,255,.78), transparent 16%),
+    radial-gradient(circle at 75% 22%, rgba(255,238,204,.34), transparent 17%);
   filter: blur(30px);
   pointer-events: none;
   z-index: 0;
@@ -1810,11 +1808,11 @@ body::before {{
   position: absolute;
   top: -12vh;
   will-change: transform, opacity;
-  animation-name: flowerFall;
+  animation-name: daisyFall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   filter: drop-shadow(0 6px 12px rgba(0,0,0,.08));
-  opacity: .94;
+  opacity: .92;
 }}
 
 .flower svg {{
@@ -1823,7 +1821,7 @@ body::before {{
   height: 100%;
 }}
 
-@keyframes flowerFall {{
+@keyframes daisyFall {{
   0% {{
     transform: translate3d(0, -12vh, 0) rotate(0deg) scale(var(--scale));
     opacity: 0;
@@ -1833,7 +1831,7 @@ body::before {{
   }}
   100% {{
     transform: translate3d(var(--drift), 112vh, 0) rotate(320deg) scale(var(--scale));
-    opacity: .08;
+    opacity: .10;
   }}
 }}
 
@@ -1851,8 +1849,8 @@ body::before {{
   padding: 28px 20px 22px;
   border-radius: 0 0 34px 34px;
   background:
-    linear-gradient(135deg, rgba(255,255,255,.84), rgba(255,248,233,.74)),
-    radial-gradient(circle at 82% 18%, rgba(255,216,116,.16), transparent 36%);
+    linear-gradient(135deg, rgba(255,255,255,.85), rgba(255,248,236,.76)),
+    radial-gradient(circle at 82% 18%, rgba(196,222,210,.16), transparent 38%);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   border: 1px solid rgba(255,255,255,.66);
@@ -1866,8 +1864,8 @@ body::before {{
   top: -40px;
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, rgba(255,228,156,.22), transparent 68%);
-  filter: blur(12px);
+  background: radial-gradient(circle, rgba(203,230,217,.18), transparent 68%);
+  filter: blur(14px);
 }}
 
 .hero-top {{
@@ -1884,51 +1882,34 @@ body::before {{
 }}
 
 .brand {{
-  font-size: clamp(36px, 6.8vw, 58px);
-  font-weight: 1000;
-  letter-spacing: .14em;
+  font-size: clamp(34px, 6.2vw, 50px);
+  font-weight: 950;
+  letter-spacing: .08em;
   text-transform: uppercase;
-  line-height: 1;
+  line-height: .95;
   position: relative;
   display: inline-block;
-  padding: 2px 0 8px;
-  isolation: isolate;
-  background: linear-gradient(
-    180deg,
-    #fffef8 0%,
-    #fff4c8 10%,
-    #ffe27e 24%,
-    #ffc93f 42%,
-    #e0a92f 58%,
-    #b87718 76%,
-    #7c4708 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  padding: 2px 0 6px;
+  color: var(--brand);
+  -webkit-text-fill-color: var(--brand);
+  background: none;
   text-shadow:
-    0 1px 0 rgba(255,255,255,.98),
-    0 2px 0 rgba(255,245,205,.96),
-    0 3px 0 rgba(255,228,138,.94),
-    0 4px 0 rgba(245,193,74,.90),
-    0 5px 0 rgba(214,150,33,.85),
-    0 6px 0 rgba(167,103,18,.78),
-    0 7px 0 rgba(112,63,8,.66),
-    0 10px 18px rgba(96,55,6,.24),
-    0 16px 30px rgba(96,55,6,.20),
-    0 0 16px rgba(255,224,120,.40),
-    0 0 30px rgba(255,210,90,.24);
-  filter: saturate(1.35) contrast(1.1) brightness(1.08);
+    0 1px 0 rgba(255,255,255,.95),
+    0 2px 0 rgba(235,245,240,.90),
+    0 4px 10px rgba(18,66,49,.18),
+    0 10px 18px rgba(18,66,49,.10);
+  filter: saturate(1.05) contrast(1.04);
 }}
 
 .brand::after {{
   content: "";
   position: absolute;
-  left: 3%;
-  right: 3%;
-  bottom: 8px;
-  height: 16px;
-  background: radial-gradient(circle, rgba(214,153,40,.34) 0%, rgba(214,153,40,0) 76%);
-  filter: blur(9px);
+  left: 4%;
+  right: 4%;
+  bottom: 5px;
+  height: 10px;
+  background: radial-gradient(circle, rgba(31,75,58,.16) 0%, rgba(31,75,58,0) 74%);
+  filter: blur(6px);
   z-index: -1;
   pointer-events: none;
 }}
@@ -1952,8 +1933,8 @@ body::before {{
   color: #fff;
   font-weight: 900;
   font-size: 13px;
-  background: linear-gradient(180deg, #e2b74b, #9d6a16);
-  box-shadow: 0 12px 24px rgba(157,106,22,.32);
+  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
+  box-shadow: 0 12px 24px rgba(159,106,21,.28);
 }}
 
 .layout {{
@@ -1999,7 +1980,7 @@ body::before {{
   border-radius: 999px;
   font-weight: 700;
   font-size: 13px;
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.84);
   color: #533f26;
   border: 1px solid rgba(200,169,107,.30);
   box-shadow: 0 6px 18px rgba(188,158,101,.08);
@@ -2011,7 +1992,7 @@ body::before {{
 }}
 
 .filter-btn.active {{
-  background: linear-gradient(180deg, #e2b74b, #9d6a16);
+  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
   color: #fff;
 }}
 
@@ -2131,7 +2112,7 @@ body::before {{
 }}
 
 .size-btn.active {{
-  background: linear-gradient(180deg, #e2b74b, #9d6a16);
+  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
   color: #fff;
 }}
 
@@ -2194,9 +2175,9 @@ body::before {{
 }}
 
 .quick-btn {{
-  background: linear-gradient(180deg, #e2b74b, #9d6a16);
+  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
   color: #fff;
-  box-shadow: 0 12px 24px rgba(157,106,22,.22);
+  box-shadow: 0 12px 24px rgba(159,106,21,.22);
 }}
 
 .checkout-btn {{
@@ -2356,9 +2337,9 @@ body::before {{
   border-radius: 999px;
   font-weight: 800;
   font-size: 13px;
-  background: linear-gradient(180deg, #e2b74b, #9d6a16);
+  background: linear-gradient(180deg, var(--accent-1), var(--accent-2));
   color: #fff;
-  box-shadow: 0 12px 24px rgba(157,106,22,.18);
+  box-shadow: 0 12px 24px rgba(159,106,21,.18);
 }}
 
 .notice {{
@@ -2601,65 +2582,21 @@ function applyTexts() {{
   document.getElementById("socialTitle").textContent = TXT.socialTitle;
 }}
 
-function flowerSVG(type) {{
-  if (type === "daisy") {{
-    return `
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <g>
-          <ellipse cx="32" cy="10" rx="7" ry="15" fill="#fff9f0"/>
-          <ellipse cx="32" cy="54" rx="7" ry="15" fill="#fff9f0"/>
-          <ellipse cx="10" cy="32" rx="15" ry="7" fill="#fff9f0"/>
-          <ellipse cx="54" cy="32" rx="15" ry="7" fill="#fff9f0"/>
-          <ellipse cx="17" cy="17" rx="7" ry="14" transform="rotate(-45 17 17)" fill="#fff9f0"/>
-          <ellipse cx="47" cy="17" rx="7" ry="14" transform="rotate(45 47 17)" fill="#fff9f0"/>
-          <ellipse cx="17" cy="47" rx="7" ry="14" transform="rotate(45 17 47)" fill="#fff9f0"/>
-          <ellipse cx="47" cy="47" rx="7" ry="14" transform="rotate(-45 47 47)" fill="#fff9f0"/>
-          <circle cx="32" cy="32" r="10" fill="#f3c548"/>
-          <circle cx="32" cy="32" r="5" fill="#d39a1f"/>
-        </g>
-      </svg>
-    `;
-  }}
-
-  if (type === "violet") {{
-    return `
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <g>
-          <ellipse cx="20" cy="20" rx="12" ry="10" fill="#8962d8"/>
-          <ellipse cx="44" cy="20" rx="12" ry="10" fill="#744fc5"/>
-          <ellipse cx="16" cy="40" rx="12" ry="10" fill="#a07ae6"/>
-          <ellipse cx="48" cy="40" rx="12" ry="10" fill="#6a47bc"/>
-          <ellipse cx="32" cy="28" rx="10" ry="12" fill="#b092f0"/>
-          <circle cx="32" cy="33" r="6" fill="#ffd86a"/>
-        </g>
-      </svg>
-    `;
-  }}
-
-  if (type === "rosepetal") {{
-    return `
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="petalGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#ffbad4"/>
-            <stop offset="55%" stop-color="#da6ea4"/>
-            <stop offset="100%" stop-color="#973a6f"/>
-          </linearGradient>
-        </defs>
-        <path d="M32 6 C48 10, 58 24, 53 40 C48 54, 34 60, 24 56 C12 50, 8 36, 13 23 C17 13, 23 8, 32 6 Z" fill="url(#petalGrad)"/>
-      </svg>
-    `;
-  }}
-
+function daisySVG(petalColor, centerColor) {{
   return `
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#f6dfb0"/>
-          <stop offset="100%" stop-color="#cf9f49"/>
-        </linearGradient>
-      </defs>
-      <path d="M10 38 C16 16, 40 8, 54 12 C50 34, 38 50, 18 54 C12 50, 9 44, 10 38 Z" fill="url(#leafGrad)"/>
+      <g>
+        <ellipse cx="32" cy="10" rx="7" ry="15" fill="${{petalColor}}"/>
+        <ellipse cx="32" cy="54" rx="7" ry="15" fill="${{petalColor}}"/>
+        <ellipse cx="10" cy="32" rx="15" ry="7" fill="${{petalColor}}"/>
+        <ellipse cx="54" cy="32" rx="15" ry="7" fill="${{petalColor}}"/>
+        <ellipse cx="17" cy="17" rx="7" ry="14" transform="rotate(-45 17 17)" fill="${{petalColor}}"/>
+        <ellipse cx="47" cy="17" rx="7" ry="14" transform="rotate(45 47 17)" fill="${{petalColor}}"/>
+        <ellipse cx="17" cy="47" rx="7" ry="14" transform="rotate(45 17 47)" fill="${{petalColor}}"/>
+        <ellipse cx="47" cy="47" rx="7" ry="14" transform="rotate(-45 47 47)" fill="${{petalColor}}"/>
+        <circle cx="32" cy="32" r="10" fill="${{centerColor}}"/>
+        <circle cx="32" cy="32" r="5" fill="#b97b10"/>
+      </g>
     </svg>
   `;
 }}
@@ -2667,21 +2604,28 @@ function flowerSVG(type) {{
 function buildFlowers() {{
   const root = document.getElementById("flowerField");
   root.innerHTML = "";
-  const types = ["daisy", "violet", "rosepetal", "leaf"];
 
-  for (let i = 0; i < 28; i += 1) {{
-    const type = types[Math.floor(Math.random() * types.length)];
+  const palettes = [
+    {{ petal: "#ffd84d", center: "#f2b705" }},
+    {{ petal: "#ff6b6b", center: "#ffd166" }},
+    {{ petal: "#6ec5ff", center: "#ffd166" }},
+    {{ petal: "#9b7bff", center: "#ffd166" }},
+    {{ petal: "#6bcf8a", center: "#ffd166" }}
+  ];
+
+  for (let i = 0; i < 30; i += 1) {{
+    const item = palettes[Math.floor(Math.random() * palettes.length)];
     const node = document.createElement("div");
     node.className = "flower";
-    const size = Math.random() * 26 + 18;
+    const size = Math.random() * 24 + 18;
     node.style.left = (Math.random() * 100).toFixed(2) + "%";
     node.style.width = size.toFixed(0) + "px";
     node.style.height = size.toFixed(0) + "px";
-    node.style.animationDuration = (8 + Math.random() * 9).toFixed(2) + "s";
-    node.style.animationDelay = (-Math.random() * 15).toFixed(2) + "s";
+    node.style.animationDuration = (8 + Math.random() * 8).toFixed(2) + "s";
+    node.style.animationDelay = (-Math.random() * 16).toFixed(2) + "s";
     node.style.setProperty("--drift", ((Math.random() * 180) - 90).toFixed(0) + "px");
-    node.style.setProperty("--scale", (0.75 + Math.random() * 1.2).toFixed(2));
-    node.innerHTML = flowerSVG(type);
+    node.style.setProperty("--scale", (0.75 + Math.random() * 1.15).toFixed(2));
+    node.innerHTML = daisySVG(item.petal, item.center);
     root.appendChild(node);
   }}
 }}
