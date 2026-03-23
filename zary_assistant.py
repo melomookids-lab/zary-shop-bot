@@ -1619,6 +1619,221 @@ async def my_orders_handler(message: Message) -> None:
 # ADMIN
 # ============================================================
 
+class AdminProductStates(StatesGroup):
+    title_ru = State()
+    title_uz = State()
+    description_ru = State()
+    description_uz = State()
+    sizes = State()
+    category_slug = State()
+    price = State()
+    old_price = State()
+    stock_qty = State()
+    photo = State()
+    is_published = State()
+    sort_order = State()
+
+
+def admin_products_toolbar_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="➕ Добавить новый товар", callback_data="admin_product:add")]
+        ]
+    )
+
+
+def admin_product_row_keyboard(product_id: int, is_published: int) -> InlineKeyboardMarkup:
+    pub_text = "🙈 Скрыть" if safe_int(is_published) else "👁 Опубликовать"
+    pub_action = "unpublish" if safe_int(is_published) else "publish"
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✏️ Редактировать", callback_data=f"admin_product:edit:{product_id}"),
+                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"admin_product:delete:{product_id}"),
+            ],
+            [
+                InlineKeyboardButton(text=pub_text, callback_data=f"admin_product:{pub_action}:{product_id}")
+            ],
+        ]
+    )
+
+
+def admin_delete_confirm_keyboard(product_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Да, удалить", callback_data=f"admin_product:delete_yes:{product_id}"),
+                InlineKeyboardButton(text="❌ Нет", callback_data=f"admin_product:delete_no:{product_id}"),
+            ]
+        ]
+    )
+
+
+def normalize_optional_admin_text(value: str) -> str:
+    value = (value or "").strip()
+    if value in {"-", "—"}:
+        return ""
+    return value
+
+
+def parse_admin_publish_value(value: str) -> Optional[int]:
+    v = (value or "").strip().lower()
+    if v in {"1", "да", "yes", "y", "опубликовать", "publish"}:
+        return 1
+    if v in {"0", "нет", "no", "n", "скрыть", "hide"}:
+        return 0
+    return None
+
+
+def create_product_record(data: dict[str, Any]) -> int:
+    conn = get_db()
+    cur = conn.cursor()
+    now = utc_now_iso()
+    cur.execute(
+        """
+        INSERT INTO shop_products (
+            photo_file_id,
+            title_ru,
+            title_uz,
+            description_ru,
+            description_uz,
+            sizes,
+            category_slug,
+            price,
+            old_price,
+            stock_qty,
+            is_published,
+            sort_order,
+            created_at,
+            updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            data.get("photo_file_id", ""),
+            data.get("title_ru", "").strip(),
+            data.get("title_uz", "").strip(),
+            data.get("description_ru", "").strip(),
+            data.get("description_uz", "").strip(),
+            data.get("sizes", "").strip(),
+            data.get("category_slug", "casual").strip(),
+            safe_int(data.get("price"), 0),
+            safe_int(data.get("old_price"), 0),
+            safe_int(data.get("stock_qty"), 0),
+            1 if safe_int(data.get("is_published"), 0) else 0,
+            safe_int(data.get("sort_order"), 100),
+            now,
+            now,
+        ),
+    )
+    product_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return product_id
+
+
+def update_product_record(product_id: int, data: dict[str, Any]) -> bool:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE shop_products
+        SET
+            photo_file_id = ?,
+            title_ru = ?,
+            title_uz = ?,
+            description_ru = ?,
+            description_uz = ?,
+            sizes = ?,
+            category_slug = ?,
+            price = ?,
+            old_price = ?,
+            stock_qty = ?,
+            is_published = ?,
+            sort_order = ?,
+            updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            data.get("photo_file_id", ""),
+            data.get("title_ru", "").strip(),
+            data.get("title_uz", "").strip(),
+            data.get("description_ru", "").strip(),
+            data.get("description_uz", "").strip(),
+            data.get("sizes", "").strip(),
+            data.get("category_slug", "casual").strip(),
+            safe_int(data.get("price"), 0),
+            safe_int(data.get("old_price"), 0),
+            safe_int(data.get("stock_qty"), 0),
+            1 if safe_int(data.get("is_published"), 0) else 0,
+            safe_int(data.get("sort_order"), 100),
+            utc_now_iso(),
+            product_id,
+        ),
+    )
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
+def delete_product_record(product_id: int) -> bool:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM shop_products WHERE id = ?", (product_id,))
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
+def set_product_published(product_id: int, value: int) -> bool:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE shop_products SET is_published = ?, updated_at = ? WHERE id = ?",
+        (1 if safe_int(value) else 0, utc_now_iso(), product_id),
+    )
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
+def admin_edit_intro_text(row: sqlite3.Row) -> str:
+    return (
+        f"✏️ <b>Редактирование товара #{row['id']}</b>\n\n"
+        f"<b>Текущее название RU:</b> {html.escape(row['title_ru'])}\n"
+        f"<b>Текущее название UZ:</b> {html.escape(row['title_uz'])}\n"
+        f"<b>Цена:</b> {fmt_sum(row['price'])}\n"
+        f"<b>Размеры:</b> {html.escape(row['sizes'] or '—')}\n"
+        f"<b>Категория:</b> {html.escape(row['category_slug'])}\n"
+        f"<b>Остаток:</b> {row['stock_qty']}\n"
+        f"<b>Публикация:</b> {'Да' if safe_int(row['is_published']) else 'Нет'}\n\n"
+        f"Сейчас начнётся полное редактирование товара по всем полям."
+    )
+
+
+def build_product_payload_from_state(data: dict[str, Any]) -> dict[str, Any]:
+    sizes_raw = normalize_optional_admin_text(data.get("sizes", ""))
+    sizes_value = sizes_to_string(parse_sizes_string(sizes_raw)) if sizes_raw else ""
+
+    return {
+        "photo_file_id": data.get("photo_file_id", ""),
+        "title_ru": (data.get("title_ru") or "").strip(),
+        "title_uz": (data.get("title_uz") or "").strip(),
+        "description_ru": normalize_optional_admin_text(data.get("description_ru", "")),
+        "description_uz": normalize_optional_admin_text(data.get("description_uz", "")),
+        "sizes": sizes_value,
+        "category_slug": (data.get("category_slug") or "casual").strip(),
+        "price": safe_int(data.get("price"), 0),
+        "old_price": safe_int(data.get("old_price"), 0),
+        "stock_qty": safe_int(data.get("stock_qty"), 0),
+        "is_published": 1 if safe_int(data.get("is_published"), 0) else 0,
+        "sort_order": safe_int(data.get("sort_order"), 100),
+    }
+
+
 @admin_router.message(F.text.in_([TEXTS['ru']['menu_admin'], TEXTS['uz']['menu_admin']]))
 async def admin_menu_open(message: Message) -> None:
     if not is_admin(message.from_user.id):
@@ -1628,7 +1843,8 @@ async def admin_menu_open(message: Message) -> None:
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_back_to_user'], TEXTS['uz']['admin_back_to_user']]))
-async def admin_back_to_user_menu(message: Message) -> None:
+async def admin_back_to_user_menu(message: Message, state: FSMContext) -> None:
+    await state.clear()
     await message.answer(t(message.from_user.id, "main_menu_hint"), reply_markup=user_main_menu(message.from_user.id))
 
 
@@ -1637,6 +1853,7 @@ async def admin_stats_handler(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer(t(message.from_user.id, "not_admin"))
         return
+
     stats = get_basic_stats()
     await message.answer(
         f"📊 <b>{t(message.from_user.id, 'admin_stats')}</b>\n\n"
@@ -1645,7 +1862,12 @@ async def admin_stats_handler(message: Message) -> None:
         f"Products: <b>{stats['products']}</b>\n"
         f"Published reviews: <b>{stats['reviews']}</b>\n"
         f"New: <b>{stats['new']}</b>\n"
-        f"Paid: <b>{stats['paid']}</b>"
+        f"Processing: <b>{stats['processing']}</b>\n"
+        f"Confirmed: <b>{stats['confirmed']}</b>\n"
+        f"Paid: <b>{stats['paid']}</b>\n"
+        f"Sent: <b>{stats['sent']}</b>\n"
+        f"Delivered: <b>{stats['delivered']}</b>\n"
+        f"Cancelled: <b>{stats['cancelled']}</b>"
     )
 
 
@@ -1654,12 +1876,17 @@ async def admin_orders_handler(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer(t(message.from_user.id, "not_admin"))
         return
+
     conn = get_db()
     rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 20").fetchall()
+    conn.execute("UPDATE orders SET manager_seen = 1 WHERE manager_seen = 0")
+    conn.commit()
     conn.close()
+
     if not rows:
         await message.answer("Пока заказов нет.")
         return
+
     for row in rows:
         await message.answer(
             f"📦 <b>Заказ #{row['id']}</b>\n"
@@ -1671,16 +1898,368 @@ async def admin_orders_handler(message: Message) -> None:
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_products'], TEXTS['uz']['admin_products']]))
-async def admin_products_handler(message: Message) -> None:
+async def admin_products_handler(message: Message, state: FSMContext) -> None:
     if not is_admin(message.from_user.id):
         await message.answer(t(message.from_user.id, "not_admin"))
         return
-    rows = get_all_products(limit=30)
+
+    await state.clear()
+
+    rows = get_all_products(limit=50)
+    await message.answer(
+        "📦 <b>Управление товарами</b>\n\n"
+        "Здесь ты можешь:\n"
+        "• добавить новый товар\n"
+        "• полностью редактировать товар\n"
+        "• удалить товар\n"
+        "• скрыть или опубликовать товар",
+        reply_markup=admin_products_toolbar_keyboard(),
+    )
+
     if not rows:
-        await message.answer("Товаров пока нет.")
+        await message.answer("Товаров пока нет. Нажми «Добавить новый товар».")
         return
+
     for row in rows:
-        await message.answer(product_card_text(row))
+        await message.answer(
+            product_card_text(row),
+            reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]),
+        )
+
+
+@admin_router.callback_query(F.data == "admin_product:add")
+async def admin_product_add_start(callback: CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    await state.clear()
+    await state.update_data(mode="create", current_product={})
+    await state.set_state(AdminProductStates.title_ru)
+
+    await callback.message.answer(
+        "➕ <b>Создание нового товара</b>\n\n"
+        "1/11. Введите название товара на русском."
+    )
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:edit:"))
+async def admin_product_edit_start(callback: CallbackQuery, state: FSMContext) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    product_id = safe_int(callback.data.split(":")[-1])
+    row = get_product_by_id(product_id)
+    if not row:
+        await callback.answer("Товар не найден", show_alert=True)
+        return
+
+    await state.clear()
+    await state.update_data(
+        mode="edit",
+        product_id=product_id,
+        current_product=dict(row),
+    )
+    await state.set_state(AdminProductStates.title_ru)
+
+    await callback.message.answer(admin_edit_intro_text(row))
+    await callback.message.answer("1/11. Введите новое название товара на русском.")
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:delete_yes:"))
+async def admin_product_delete_yes(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    product_id = safe_int(callback.data.split(":")[-1])
+    ok = delete_product_record(product_id)
+    if ok:
+        await callback.message.answer(f"🗑 Товар #{product_id} удалён.")
+    else:
+        await callback.message.answer("Товар не найден.")
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:delete_no:"))
+async def admin_product_delete_no(callback: CallbackQuery) -> None:
+    await callback.message.answer("Удаление отменено.")
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:delete:"))
+async def admin_product_delete_ask(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    product_id = safe_int(callback.data.split(":")[-1])
+    row = get_product_by_id(product_id)
+    if not row:
+        await callback.answer("Товар не найден", show_alert=True)
+        return
+
+    await callback.message.answer(
+        f"Ты точно хочешь удалить товар #{product_id}?\n\n"
+        f"<b>{html.escape(row['title_ru'])}</b>",
+        reply_markup=admin_delete_confirm_keyboard(product_id),
+    )
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:publish:"))
+async def admin_product_publish(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    product_id = safe_int(callback.data.split(":")[-1])
+    ok = set_product_published(product_id, 1)
+    await callback.message.answer(f"Товар #{product_id} опубликован." if ok else "Товар не найден.")
+    await callback.answer()
+
+
+@admin_router.callback_query(F.data.startswith("admin_product:unpublish:"))
+async def admin_product_unpublish(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    product_id = safe_int(callback.data.split(":")[-1])
+    ok = set_product_published(product_id, 0)
+    await callback.message.answer(f"Товар #{product_id} скрыт." if ok else "Товар не найден.")
+    await callback.answer()
+
+
+@admin_router.message(AdminProductStates.title_ru)
+async def admin_product_title_ru_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = (message.text or "").strip()
+    if not value:
+        await message.answer("Название RU не может быть пустым. Введи название товара на русском.")
+        return
+
+    await state.update_data(title_ru=value)
+    await state.set_state(AdminProductStates.title_uz)
+    await message.answer("2/11. Введите название товара на узбекском.")
+
+
+@admin_router.message(AdminProductStates.title_uz)
+async def admin_product_title_uz_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = (message.text or "").strip()
+    if not value:
+        await message.answer("Название UZ не может быть пустым. Введи название товара на узбекском.")
+        return
+
+    await state.update_data(title_uz=value)
+    await state.set_state(AdminProductStates.description_ru)
+    await message.answer("3/11. Введите описание на русском или отправьте '-' если пусто.")
+
+
+@admin_router.message(AdminProductStates.description_ru)
+async def admin_product_description_ru_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = normalize_optional_admin_text(message.text or "")
+    await state.update_data(description_ru=value)
+    await state.set_state(AdminProductStates.description_uz)
+    await message.answer("4/11. Введите описание на узбекском или отправьте '-' если пусто.")
+
+
+@admin_router.message(AdminProductStates.description_uz)
+async def admin_product_description_uz_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = normalize_optional_admin_text(message.text or "")
+    await state.update_data(description_uz=value)
+    await state.set_state(AdminProductStates.sizes)
+    await message.answer(
+        "5/11. Введите размеры через запятую.\n\n"
+        "Пример:\n"
+        "<code>110, 116, 122, 128</code>\n\n"
+        "Если размеров нет — отправьте '-'."
+    )
+
+
+@admin_router.message(AdminProductStates.sizes)
+async def admin_product_sizes_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = normalize_optional_admin_text(message.text or "")
+    await state.update_data(sizes=value)
+    await state.set_state(AdminProductStates.category_slug)
+    await message.answer(
+        "6/11. Введите категорию.\n\n"
+        f"Допустимые значения:\n<code>{', '.join(CATEGORY_SLUGS)}</code>"
+    )
+
+
+@admin_router.message(AdminProductStates.category_slug)
+async def admin_product_category_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = (message.text or "").strip().lower()
+    if value not in CATEGORY_SLUGS:
+        await message.answer(f"Неверная категория.\nДопустимо только: <code>{', '.join(CATEGORY_SLUGS)}</code>")
+        return
+
+    await state.update_data(category_slug=value)
+    await state.set_state(AdminProductStates.price)
+    await message.answer("7/11. Введите цену товара числом. Пример: <code>289000</code>")
+
+
+@admin_router.message(AdminProductStates.price)
+async def admin_product_price_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = safe_int(message.text, -1)
+    if value < 0:
+        await message.answer("Цена должна быть числом 0 или больше. Пример: <code>289000</code>")
+        return
+
+    await state.update_data(price=value)
+    await state.set_state(AdminProductStates.old_price)
+    await message.answer("8/11. Введите старую цену числом. Если старой цены нет — отправьте <code>0</code>")
+
+
+@admin_router.message(AdminProductStates.old_price)
+async def admin_product_old_price_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = safe_int(message.text, -1)
+    if value < 0:
+        await message.answer("Старая цена должна быть числом 0 или больше.")
+        return
+
+    await state.update_data(old_price=value)
+    await state.set_state(AdminProductStates.stock_qty)
+    await message.answer("9/11. Введите остаток на складе. Пример: <code>15</code>")
+
+
+@admin_router.message(AdminProductStates.stock_qty)
+async def admin_product_stock_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = safe_int(message.text, -1)
+    if value < 0:
+        await message.answer("Остаток должен быть числом 0 или больше.")
+        return
+
+    await state.update_data(stock_qty=value)
+    await state.set_state(AdminProductStates.photo)
+
+    data = await state.get_data()
+    mode = data.get("mode", "create")
+    if mode == "edit":
+        await message.answer(
+            "10/11. Отправьте новое фото товара.\n\n"
+            "Либо отправьте:\n"
+            "• <code>skip</code> — оставить текущее фото\n"
+            "• <code>-</code> — удалить фото"
+        )
+    else:
+        await message.answer(
+            "10/11. Отправьте фото товара.\n\n"
+            "Если фото пока нет — отправьте <code>-</code>"
+        )
+
+
+@admin_router.message(AdminProductStates.photo)
+async def admin_product_photo_handler(message: Message, state: FSMContext) -> None:
+    if message.text and await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    data = await state.get_data()
+    mode = data.get("mode", "create")
+    current_product = data.get("current_product") or {}
+    photo_file_id = ""
+
+    if message.photo:
+        photo_file_id = message.photo[-1].file_id
+    else:
+        text = (message.text or "").strip().lower()
+        if mode == "edit" and text == "skip":
+            photo_file_id = current_product.get("photo_file_id", "") or ""
+        elif text in {"-", "—"}:
+            photo_file_id = ""
+        else:
+            if mode == "edit":
+                await message.answer("Отправь фото, либо <code>skip</code> чтобы оставить текущее, либо <code>-</code> чтобы удалить.")
+            else:
+                await message.answer("Отправь фото товара или <code>-</code>, если фото пока нет.")
+            return
+
+    await state.update_data(photo_file_id=photo_file_id)
+    await state.set_state(AdminProductStates.is_published)
+    await message.answer("11/11. Публикация товара: отправьте <code>1</code> для публикации или <code>0</code> чтобы скрыть.")
+
+
+@admin_router.message(AdminProductStates.is_published)
+async def admin_product_is_published_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = parse_admin_publish_value(message.text or "")
+    if value is None:
+        await message.answer("Отправь <code>1</code> чтобы опубликовать или <code>0</code> чтобы скрыть товар.")
+        return
+
+    await state.update_data(is_published=value)
+    await state.set_state(AdminProductStates.sort_order)
+    await message.answer("Финал. Введите sort_order. Пример: <code>10</code>")
+
+
+@admin_router.message(AdminProductStates.sort_order)
+async def admin_product_sort_order_handler(message: Message, state: FSMContext) -> None:
+    if await maybe_cancel_state(message, state, admin_back=True):
+        return
+
+    value = safe_int(message.text, -1)
+    if value < 0:
+        await message.answer("sort_order должен быть числом 0 или больше.")
+        return
+
+    await state.update_data(sort_order=value)
+    data = await state.get_data()
+    payload = build_product_payload_from_state(data)
+
+    if data.get("mode") == "edit":
+        product_id = safe_int(data.get("product_id"))
+        ok = update_product_record(product_id, payload)
+        await state.clear()
+
+        if not ok:
+            await message.answer("Не удалось обновить товар.", reply_markup=admin_main_menu(message.from_user.id))
+            return
+
+        row = get_product_by_id(product_id)
+        await message.answer(f"✅ Товар #{product_id} обновлён.", reply_markup=admin_main_menu(message.from_user.id))
+        if row:
+            await message.answer(product_card_text(row), reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]))
+        return
+
+    product_id = create_product_record(payload)
+    await state.clear()
+
+    row = get_product_by_id(product_id)
+    await message.answer(f"✅ Новый товар #{product_id} создан.", reply_markup=admin_main_menu(message.from_user.id))
+    if row:
+        await message.answer(product_card_text(row), reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]))
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_reviews'], TEXTS['uz']['admin_reviews']]))
@@ -1688,10 +2267,12 @@ async def admin_reviews_handler(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer(t(message.from_user.id, "not_admin"))
         return
+
     rows = get_all_reviews(limit=30)
     if not rows:
         await message.answer("Отзывов пока нет.")
         return
+
     for row in rows:
         await message.answer(
             f"⭐ <b>Отзыв #{row['id']}</b>\n\n"
@@ -1708,17 +2289,18 @@ async def admin_publish_review_command(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer(t(message.from_user.id, "not_admin"))
         return
+
     parts = (message.text or "").split()
     if len(parts) != 2 or not parts[1].isdigit():
         await message.answer("Используй: /publish_review 5")
         return
+
     review_id = int(parts[1])
     conn = get_db()
     conn.execute("UPDATE reviews SET is_published = 1, updated_at = ? WHERE id = ?", (utc_now_iso(), review_id))
     conn.commit()
     conn.close()
     await message.answer(f"Отзыв #{review_id} опубликован.")
-
 
 # ============================================================
 # FALLBACK
