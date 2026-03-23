@@ -1670,6 +1670,37 @@ def admin_delete_confirm_keyboard(product_id: int) -> InlineKeyboardMarkup:
     )
 
 
+def admin_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🆕 Новый", callback_data=f"admin_order:status:{order_id}:new"),
+                InlineKeyboardButton(text="⚙️ В работе", callback_data=f"admin_order:status:{order_id}:processing"),
+                InlineKeyboardButton(text="✅ Подтв.", callback_data=f"admin_order:status:{order_id}:confirmed"),
+            ],
+            [
+                InlineKeyboardButton(text="💰 Оплачен", callback_data=f"admin_order:status:{order_id}:paid"),
+                InlineKeyboardButton(text="🚚 Отправлен", callback_data=f"admin_order:status:{order_id}:sent"),
+                InlineKeyboardButton(text="📦 Доставлен", callback_data=f"admin_order:status:{order_id}:delivered"),
+            ],
+            [
+                InlineKeyboardButton(text="❌ Отменить заказ", callback_data=f"admin_order:status:{order_id}:cancelled"),
+            ],
+            [
+                InlineKeyboardButton(text="💳 Оплата: pending", callback_data=f"admin_order:payment:{order_id}:pending"),
+                InlineKeyboardButton(text="💳 Оплата: paid", callback_data=f"admin_order:payment:{order_id}:paid"),
+            ],
+            [
+                InlineKeyboardButton(text="💳 Оплата: failed", callback_data=f"admin_order:payment:{order_id}:failed"),
+                InlineKeyboardButton(text="💳 Оплата: refunded", callback_data=f"admin_order:payment:{order_id}:refunded"),
+            ],
+            [
+                InlineKeyboardButton(text="💳 Оплата: cancelled", callback_data=f"admin_order:payment:{order_id}:cancelled"),
+            ],
+        ]
+    )
+
+
 def normalize_optional_admin_text(value: str) -> str:
     value = (value or "").strip()
     if value in {"-", "—"}:
@@ -1800,6 +1831,45 @@ def set_product_published(product_id: int, value: int) -> bool:
     return ok
 
 
+def get_recent_orders(limit: int = 20) -> list[sqlite3.Row]:
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    conn.close()
+    return rows
+
+
+def update_order_status(order_id: int, new_status: str) -> bool:
+    if new_status not in ORDER_STATUSES:
+        return False
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE orders SET status = ?, manager_seen = 1, updated_at = ? WHERE id = ?",
+        (new_status, utc_now_iso(), order_id),
+    )
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
+def update_order_payment_status(order_id: int, new_payment_status: str) -> bool:
+    if new_payment_status not in PAYMENT_STATUSES:
+        return False
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE orders SET payment_status = ?, manager_seen = 1, updated_at = ? WHERE id = ?",
+        (new_payment_status, utc_now_iso(), order_id),
+    )
+    ok = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    return ok
+
+
 def admin_edit_intro_text(row: sqlite3.Row) -> str:
     return (
         f"✏️ <b>Редактирование товара #{row['id']}</b>\n\n"
@@ -1832,6 +1902,48 @@ def build_product_payload_from_state(data: dict[str, Any]) -> dict[str, Any]:
         "is_published": 1 if safe_int(data.get("is_published"), 0) else 0,
         "sort_order": safe_int(data.get("sort_order"), 100),
     }
+
+
+def admin_order_text(row: sqlite3.Row) -> str:
+    address = row["delivery_address"] or ""
+    comment = row["comment"] or ""
+    latitude = row["latitude"]
+    longitude = row["longitude"]
+
+    lines = [
+        f"📦 <b>Заказ #{row['id']}</b>",
+        "",
+        f"<b>Клиент:</b> {html.escape(row['customer_name'] or '—')}",
+        f"<b>Телефон:</b> {html.escape(row['customer_phone'] or '—')}",
+        f"<b>Username:</b> {mask_username(row['username'])}",
+        f"<b>User ID:</b> {row['user_id']}",
+        f"<b>Город:</b> {html.escape(row['city'] or '—')}",
+        f"<b>Доставка:</b> {delivery_label('ru', row['delivery_service'] or '')}",
+        f"<b>Тип адреса:</b> {address_type_label('ru', row['delivery_type'] or '')}",
+        f"<b>Адрес:</b> {html.escape(address or '—')}",
+    ]
+
+    if latitude is not None and longitude is not None:
+        lines.append(f"<b>Локация:</b> {latitude}, {longitude}")
+        lines.append(f"<b>Карта:</b> https://maps.google.com/?q={latitude},{longitude}")
+
+    lines += [
+        f"<b>Оплата:</b> {payment_method_label('ru', row['payment_method'] or '')}",
+        f"<b>Статус оплаты:</b> {payment_status_label('ru', row['payment_status'])}",
+        f"<b>Статус заказа:</b> {status_label('ru', row['status'])}",
+        f"<b>Комментарий:</b> {html.escape(comment or '—')}",
+        f"<b>Сумма:</b> {fmt_sum(row['total_amount'])}",
+        f"<b>Количество:</b> {row['total_qty']}",
+        f"<b>Дата:</b> {row['created_at']}",
+        "",
+        f"<b>Товары:</b>",
+        render_order_items(row['items']),
+    ]
+
+    if row["payment_provider_url"]:
+        lines += ["", f"<b>Ссылка на оплату:</b> {html.escape(row['payment_provider_url'])}"]
+
+    return "\n".join(lines)
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['menu_admin'], TEXTS['uz']['menu_admin']]))
@@ -1877,8 +1989,9 @@ async def admin_orders_handler(message: Message) -> None:
         await message.answer(t(message.from_user.id, "not_admin"))
         return
 
+    rows = get_recent_orders(limit=20)
+
     conn = get_db()
-    rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 20").fetchall()
     conn.execute("UPDATE orders SET manager_seen = 1 WHERE manager_seen = 0")
     conn.commit()
     conn.close()
@@ -1887,14 +2000,77 @@ async def admin_orders_handler(message: Message) -> None:
         await message.answer("Пока заказов нет.")
         return
 
+    await message.answer("📋 <b>Управление заказами</b>\n\nПод каждым заказом есть кнопки для смены статуса заказа и оплаты.")
+
     for row in rows:
         await message.answer(
-            f"📦 <b>Заказ #{row['id']}</b>\n"
-            f"{html.escape(row['customer_name'] or '—')}\n"
-            f"{fmt_sum(row['total_amount'])}\n"
-            f"{status_label('ru', row['status'])}\n\n"
-            f"{render_order_items(row['items'])}"
+            admin_order_text(row),
+            reply_markup=admin_order_actions_keyboard(row["id"]),
         )
+
+
+@admin_router.callback_query(F.data.startswith("admin_order:status:"))
+async def admin_order_status_callback(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) != 4:
+        await callback.answer("Неверные данные", show_alert=True)
+        return
+
+    order_id = safe_int(parts[2])
+    new_status = parts[3]
+
+    ok = update_order_status(order_id, new_status)
+    row = get_order_by_id(order_id)
+
+    if not ok or not row:
+        await callback.message.answer("Не удалось обновить статус заказа.")
+        await callback.answer()
+        return
+
+    await callback.message.answer(
+        f"✅ Статус заказа #{order_id} обновлён: <b>{status_label('ru', new_status)}</b>"
+    )
+    await callback.message.answer(
+        admin_order_text(row),
+        reply_markup=admin_order_actions_keyboard(order_id),
+    )
+    await callback.answer("Статус заказа обновлён")
+
+
+@admin_router.callback_query(F.data.startswith("admin_order:payment:"))
+async def admin_order_payment_callback(callback: CallbackQuery) -> None:
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+
+    parts = (callback.data or "").split(":")
+    if len(parts) != 4:
+        await callback.answer("Неверные данные", show_alert=True)
+        return
+
+    order_id = safe_int(parts[2])
+    new_payment_status = parts[3]
+
+    ok = update_order_payment_status(order_id, new_payment_status)
+    row = get_order_by_id(order_id)
+
+    if not ok or not row:
+        await callback.message.answer("Не удалось обновить статус оплаты.")
+        await callback.answer()
+        return
+
+    await callback.message.answer(
+        f"✅ Статус оплаты заказа #{order_id} обновлён: <b>{payment_status_label('ru', new_payment_status)}</b>"
+    )
+    await callback.message.answer(
+        admin_order_text(row),
+        reply_markup=admin_order_actions_keyboard(order_id),
+    )
+    await callback.answer("Статус оплаты обновлён")
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_products'], TEXTS['uz']['admin_products']]))
