@@ -1745,210 +1745,639 @@ def build_shop_html() -> str:
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {{
-  --bg-1:#fffaf6;
-  --bg-2:#fff2f6;
-  --bg-3:#fff8ed;
-  --glass:rgba(255,255,255,.52);
-  --glass-strong:rgba(255,255,255,.68);
-  --line:rgba(201,166,111,.20);
-  --text:#201b18;
-  --muted:#7a6c66;
-  --gold:#c8a96b;
-  --gold-deep:#a98034;
-  --rose:#f3cfd8;
-  --cream:#f8ead8;
-  --shadow:0 18px 50px rgba(122, 86, 42, .14);
-  --shadow-soft:0 10px 30px rgba(67, 44, 21, .08);
-  --radius-xl:28px;
-  --radius-lg:22px;
-  --radius-md:16px;
+  --bg-1: #fffaf2;
+  --bg-2: #fff4ea;
+  --bg-3: #fff8f5;
+  --champagne: #f3e0bb;
+  --gold-1: #ffe7a3;
+  --gold-2: #d9b24f;
+  --gold-3: #9f6d16;
+  --text: #241b14;
+  --muted: #7b6c61;
+  --panel: rgba(255,255,255,.58);
+  --panel-strong: rgba(255,255,255,.72);
+  --line: rgba(201,166,111,.22);
+  --shadow: 0 18px 50px rgba(110, 79, 32, .12);
+  --shadow-soft: 0 10px 28px rgba(92, 62, 24, .08);
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
 }}
-* {{ box-sizing:border-box; }}
-html,body {{ min-height:100%; }}
+
+* {{
+  box-sizing: border-box;
+}}
+
+html, body {{
+  min-height: 100%;
+}}
+
 body {{
-  margin:0;
-  color:var(--text);
-  font-family:Inter, Arial, Helvetica, sans-serif;
+  margin: 0;
+  color: var(--text);
+  font-family: Inter, Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at 10% 10%, rgba(255, 212, 226, .9), transparent 28%),
-    radial-gradient(circle at 88% 18%, rgba(255, 240, 208, .95), transparent 24%),
-    radial-gradient(circle at 76% 80%, rgba(244, 218, 229, .70), transparent 22%),
+    radial-gradient(circle at 12% 12%, rgba(255, 233, 186, .55), transparent 24%),
+    radial-gradient(circle at 88% 18%, rgba(244, 210, 236, .35), transparent 24%),
+    radial-gradient(circle at 75% 80%, rgba(223, 216, 255, .28), transparent 20%),
     linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
-  overflow-x:hidden;
+  overflow-x: hidden;
 }}
+
 body::before {{
-  content:"";
-  position:fixed;
-  inset:-20%;
+  content: "";
+  position: fixed;
+  inset: -15%;
   background:
-    radial-gradient(circle at 35% 35%, rgba(255,255,255,.65), transparent 16%),
-    radial-gradient(circle at 70% 25%, rgba(255,231,199,.45), transparent 18%),
-    radial-gradient(circle at 50% 75%, rgba(255,217,227,.35), transparent 18%);
-  filter:blur(30px);
-  pointer-events:none;
-  z-index:0;
+    radial-gradient(circle at 30% 35%, rgba(255,255,255,.75), transparent 16%),
+    radial-gradient(circle at 75% 22%, rgba(255,236,194,.45), transparent 18%),
+    radial-gradient(circle at 60% 75%, rgba(229, 205, 255, .18), transparent 16%);
+  filter: blur(30px);
+  pointer-events: none;
+  z-index: 0;
 }}
-.petals {{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:1; }}
-.petal {{
-  position:absolute;
-  top:-10vh;
-  width:18px;
-  height:24px;
-  border-radius:65% 35% 70% 30% / 58% 42% 58% 42%;
-  background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(244,205,216,.80) 55%, rgba(214,179,121,.65));
-  box-shadow:0 0 18px rgba(255,255,255,.55);
-  opacity:.78;
-  animation-name:fall;
-  animation-timing-function:linear;
-  animation-iteration-count:infinite;
+
+.flower-field {{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
 }}
-@keyframes fall {{
-  0% {{ transform:translate3d(0,-12vh,0) rotate(0deg); opacity:0; }}
-  10% {{ opacity:.85; }}
-  100% {{ transform:translate3d(var(--drift),110vh,0) rotate(320deg); opacity:.08; }}
+
+.flower {{
+  position: absolute;
+  top: -12vh;
+  will-change: transform, opacity;
+  animation-name: flowerFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,.08));
+  opacity: .92;
 }}
-.wrap {{ max-width:1180px; margin:0 auto; padding:20px 14px 28px; position:relative; z-index:2; }}
+
+.flower svg {{
+  display: block;
+  width: 100%;
+  height: 100%;
+}}
+
+@keyframes flowerFall {{
+  0% {{
+    transform: translate3d(0, -12vh, 0) rotate(0deg) scale(var(--scale));
+    opacity: 0;
+  }}
+  10% {{
+    opacity: .92;
+  }}
+  100% {{
+    transform: translate3d(var(--drift), 112vh, 0) rotate(320deg) scale(var(--scale));
+    opacity: .06;
+  }}
+}}
+
+.wrap {{
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 14px 28px;
+  position: relative;
+  z-index: 2;
+}}
+
 .hero {{
-  position:relative;
-  overflow:hidden;
-  padding:26px 20px 20px;
-  border-radius:0 0 32px 32px;
-  background:linear-gradient(135deg, rgba(255,255,255,.58), rgba(255,248,240,.42));
-  backdrop-filter:blur(18px) saturate(160%);
-  -webkit-backdrop-filter:blur(18px) saturate(160%);
-  border:1px solid rgba(255,255,255,.55);
-  box-shadow:var(--shadow);
+  position: relative;
+  overflow: hidden;
+  padding: 28px 20px 22px;
+  border-radius: 0 0 34px 34px;
+  background: linear-gradient(135deg, rgba(255,255,255,.68), rgba(255,249,239,.58));
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255,255,255,.62);
+  box-shadow: var(--shadow);
 }}
+
 .hero::before {{
-  content:"";
-  position:absolute;
-  inset:auto -80px -120px auto;
-  width:280px;
-  height:280px;
-  background:radial-gradient(circle, rgba(200,169,107,.22), transparent 62%);
-  filter:blur(12px);
+  content: "";
+  position: absolute;
+  right: -50px;
+  top: -40px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 228, 156, .25), transparent 68%);
+  filter: blur(12px);
 }}
-.hero-top {{ display:flex; align-items:center; justify-content:space-between; gap:16px; }}
-.brand-wrap {{ display:flex; flex-direction:column; gap:8px; }}
+
+.hero-top {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}}
+
+.brand-wrap {{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}}
+
 .brand {{
-  font-size:clamp(30px, 6vw, 46px);
-  font-weight:900;
-  letter-spacing:.12em;
-  text-transform:uppercase;
-  background:linear-gradient(180deg, #f4dfae 0%, #c8a96b 44%, #9a742a 100%);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
-  text-shadow:0 8px 24px rgba(167,121,46,.18);
+  font-size: clamp(32px, 6vw, 50px);
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  line-height: 1;
+  background: linear-gradient(180deg, #fff6c9 0%, #ffd86a 20%, #d9a73a 55%, #8f5e12 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.95),
+    0 2px 0 rgba(246,219,152,.9),
+    0 3px 0 rgba(220,177,84,.82),
+    0 4px 0 rgba(176,124,33,.72),
+    0 10px 18px rgba(122,80,14,.24),
+    0 0 22px rgba(255,220,132,.42);
+  filter: saturate(1.18) brightness(1.04);
 }}
-.brand-sub {{ color:var(--muted); font-size:15px; max-width:560px; line-height:1.45; }}
+
+.brand-sub {{
+  color: var(--muted);
+  font-size: 15px;
+  max-width: 560px;
+  line-height: 1.45;
+  font-weight: 500;
+}}
+
 .badge {{
-  min-width:34px; height:34px; padding:0 10px; display:inline-flex; align-items:center; justify-content:center;
-  border-radius:999px; color:#fff; font-weight:900; font-size:13px;
-  background:linear-gradient(180deg, var(--gold), var(--gold-deep)); box-shadow:0 10px 24px rgba(169,128,52,.33);
+  min-width: 38px;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 13px;
+  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  box-shadow: 0 12px 24px rgba(159,109,22,.32);
 }}
-.layout {{ display:grid; grid-template-columns:minmax(0,1.55fr) minmax(320px,.95fr); gap:16px; margin-top:16px; }}
+
+.layout {{
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, .95fr);
+  gap: 16px;
+  margin-top: 16px;
+}}
+
 .panel, .reviews-box, .social-box {{
-  background:var(--glass);
-  backdrop-filter:blur(16px) saturate(165%);
-  -webkit-backdrop-filter:blur(16px) saturate(165%);
-  border:1px solid rgba(255,255,255,.56);
-  box-shadow:var(--shadow-soft);
-  border-radius:var(--radius-xl);
+  background: var(--panel);
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  border: 1px solid rgba(255,255,255,.62);
+  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-xl);
 }}
-.panel-head {{ padding:18px 18px 8px; font-size:26px; font-weight:900; }}
-.panel-sub {{ padding:0 18px 16px; font-size:14px; color:var(--muted); line-height:1.5; }}
-.filters {{ display:flex; gap:8px; flex-wrap:wrap; padding:0 16px 14px; }}
+
+.panel-head {{
+  padding: 18px 18px 8px;
+  font-size: 26px;
+  font-weight: 900;
+}}
+
+.panel-sub {{
+  padding: 0 18px 16px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}}
+
+.filters {{
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 16px 14px;
+}}
+
 .filter-btn {{
-  border:none; cursor:pointer; padding:10px 14px; border-radius:999px; font-weight:700; font-size:13px;
-  background:rgba(255,255,255,.65); color:#533f26; border:1px solid rgba(200,169,107,.32);
-  box-shadow:0 6px 18px rgba(188,158,101,.08); transition:.24s ease;
+  border: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+  background: rgba(255,255,255,.78);
+  color: #533f26;
+  border: 1px solid rgba(200,169,107,.30);
+  box-shadow: 0 6px 18px rgba(188,158,101,.08);
+  transition: .24s ease;
 }}
-.filter-btn:hover {{ transform:translateY(-1px); }}
-.filter-btn.active {{ background:linear-gradient(180deg, var(--gold), var(--gold-deep)); color:#fff; }}
-.catalog {{ padding:0 14px 16px; }}
-.grid {{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }}
+
+.filter-btn:hover {{
+  transform: translateY(-1px);
+}}
+
+.filter-btn.active {{
+  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  color: #fff;
+}}
+
+.catalog {{
+  padding: 0 14px 16px;
+}}
+
+.grid {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 14px;
+}}
+
 .card {{
-  background:var(--glass-strong);
-  border:1px solid rgba(255,255,255,.58);
-  border-radius:22px;
-  overflow:hidden;
-  box-shadow:0 14px 34px rgba(133,96,49,.08);
-  transition:transform .28s ease, box-shadow .28s ease;
+  background: var(--panel-strong);
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(133,96,49,.08);
+  transition: transform .28s ease, box-shadow .28s ease;
 }}
-.card:hover {{ transform:translateY(-3px); box-shadow:0 20px 40px rgba(133,96,49,.14); }}
-.card-inner {{ padding:14px; display:flex; flex-direction:column; gap:12px; }}
-.photo {{ aspect-ratio:1 / 1.08; border-radius:18px; overflow:hidden; background:linear-gradient(135deg, rgba(255,255,255,.7), rgba(248,228,213,.9)); border:1px solid rgba(200,169,107,.15); }}
-.photo img {{ width:100%; height:100%; object-fit:cover; display:block; }}
-.photo-placeholder {{ display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#9e8f86; font-weight:600; }}
-.card-title {{ font-size:17px; font-weight:900; line-height:1.3; }}
-.card-desc {{ color:var(--muted); font-size:13px; line-height:1.5; min-height:40px; }}
-.price-row {{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }}
-.price {{ font-size:22px; font-weight:900; }}
-.old-price {{ color:#99887c; text-decoration:line-through; font-size:13px; }}
-.meta {{ display:flex; flex-direction:column; gap:5px; color:#6e615a; font-size:12px; }}
-.sizes {{ display:flex; flex-wrap:wrap; gap:7px; }}
+
+.card:hover {{
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(133,96,49,.14);
+}}
+
+.card-inner {{
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}}
+
+.photo {{
+  aspect-ratio: 1 / 1.08;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255,255,255,.84), rgba(248,228,213,.96));
+  border: 1px solid rgba(200,169,107,.15);
+}}
+
+.photo img {{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}}
+
+.photo-placeholder {{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #9e8f86;
+  font-weight: 700;
+  font-size: 15px;
+}}
+
+.card-title {{
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.3;
+}}
+
+.card-desc {{
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 40px;
+}}
+
+.price-row {{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}}
+
+.price {{
+  font-size: 22px;
+  font-weight: 900;
+}}
+
+.old-price {{
+  color: #99887c;
+  text-decoration: line-through;
+  font-size: 13px;
+}}
+
+.meta {{
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #6e615a;
+  font-size: 12px;
+}}
+
+.sizes {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}}
+
 .size-btn {{
-  border:none; cursor:pointer; padding:8px 12px; border-radius:999px; font-size:12px; font-weight:700;
-  background:rgba(255,255,255,.78); color:#493626; border:1px solid rgba(200,169,107,.28); transition:.2s ease;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255,255,255,.82);
+  color: #493626;
+  border: 1px solid rgba(200,169,107,.28);
+  transition: .2s ease;
 }}
-.size-btn.active {{ background:linear-gradient(180deg, var(--gold), var(--gold-deep)); color:#fff; }}
-.qty-row {{ display:flex; justify-content:space-between; align-items:center; gap:10px; }}
-.qty-box {{ display:flex; align-items:center; border-radius:999px; background:rgba(255,255,255,.75); border:1px solid rgba(200,169,107,.26); overflow:hidden; }}
-.qty-btn {{ width:38px; height:38px; border:none; background:transparent; cursor:pointer; font-size:19px; color:#37291f; }}
-.qty-value {{ min-width:36px; text-align:center; font-weight:800; }}
-.action-row {{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }}
+
+.size-btn.active {{
+  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  color: #fff;
+}}
+
+.qty-row {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}}
+
+.qty-box {{
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(255,255,255,.80);
+  border: 1px solid rgba(200,169,107,.26);
+  overflow: hidden;
+}}
+
+.qty-btn {{
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 19px;
+  color: #37291f;
+}}
+
+.qty-value {{
+  min-width: 36px;
+  text-align: center;
+  font-weight: 800;
+}}
+
+.action-row {{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}}
+
 .buy-btn, .quick-btn, .checkout-btn, .clear-btn {{
-  border:none; cursor:pointer; border-radius:16px; padding:13px 14px; font-weight:800; font-size:14px;
-  transition:transform .22s ease, box-shadow .22s ease, opacity .22s ease;
+  border: none;
+  cursor: pointer;
+  border-radius: 16px;
+  padding: 13px 14px;
+  font-weight: 800;
+  font-size: 14px;
+  transition: transform .22s ease, box-shadow .22s ease, opacity .22s ease;
 }}
-.buy-btn:hover, .quick-btn:hover, .checkout-btn:hover, .clear-btn:hover {{ transform:translateY(-1px); }}
-.buy-btn {{ background:#181311; color:#fff; box-shadow:0 12px 24px rgba(0,0,0,.12); }}
-.quick-btn {{ background:linear-gradient(180deg, var(--gold), var(--gold-deep)); color:#fff; box-shadow:0 12px 24px rgba(169,128,52,.24); }}
-.checkout-btn {{ width:100%; background:#181311; color:#fff; box-shadow:0 12px 24px rgba(0,0,0,.12); }}
-.clear-btn {{ width:100%; margin-top:10px; background:rgba(255,255,255,.78); color:#2a2018; border:1px solid rgba(200,169,107,.28); }}
-.buy-btn:disabled, .quick-btn:disabled {{ opacity:.55; cursor:not-allowed; }}
-.cart-wrap {{ padding:16px; }}
-.cart-list {{ display:flex; flex-direction:column; gap:10px; }}
-.cart-item {{ background:rgba(255,255,255,.72); border:1px solid rgba(200,169,107,.20); border-radius:18px; padding:12px; }}
-.cart-item-top {{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }}
-.cart-name {{ font-weight:800; font-size:14px; }}
-.cart-meta {{ color:#6d615a; font-size:12px; line-height:1.45; }}
-.cart-remove {{ border:none; cursor:pointer; background:rgba(255,255,255,.86); width:34px; height:34px; border-radius:12px; box-shadow:0 6px 12px rgba(0,0,0,.05); }}
-.cart-empty {{ color:#7f7268; font-size:14px; padding:6px 2px 14px; }}
-.summary {{ border-top:1px solid rgba(200,169,107,.18); margin-top:14px; padding-top:14px; display:flex; flex-direction:column; gap:10px; }}
-.summary-row {{ display:flex; justify-content:space-between; gap:12px; font-size:14px; }}
-.checkout-box {{ margin-top:16px; border-top:1px solid rgba(200,169,107,.18); padding-top:14px; }}
-.checkout-box-title {{ font-size:18px; font-weight:900; margin-bottom:8px; }}
-.checkout-box-text {{ color:var(--muted); font-size:13px; line-height:1.5; }}
-.reviews-box, .social-box {{ margin-top:16px; padding:18px; }}
-.reviews-title, .social-title {{ font-size:22px; font-weight:900; margin-bottom:12px; }}
-.reviews-list {{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }}
-.review-card {{ background:rgba(255,255,255,.72); border:1px solid rgba(200,169,107,.18); border-radius:18px; padding:14px; }}
-.review-stars {{ font-size:17px; margin-bottom:8px; }}
-.review-name {{ font-weight:800; margin-bottom:6px; }}
-.review-text {{ color:#685b54; line-height:1.5; font-size:13px; }}
-.social-links {{ display:flex; flex-wrap:wrap; gap:10px; }}
+
+.buy-btn:hover, .quick-btn:hover, .checkout-btn:hover, .clear-btn:hover {{
+  transform: translateY(-1px);
+}}
+
+.buy-btn {{
+  background: #181311;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(0,0,0,.12);
+}}
+
+.quick-btn {{
+  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(159,109,22,.22);
+}}
+
+.checkout-btn {{
+  width: 100%;
+  background: #181311;
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(0,0,0,.12);
+}}
+
+.clear-btn {{
+  width: 100%;
+  margin-top: 10px;
+  background: rgba(255,255,255,.82);
+  color: #2a2018;
+  border: 1px solid rgba(200,169,107,.28);
+}}
+
+.buy-btn:disabled, .quick-btn:disabled {{
+  opacity: .55;
+  cursor: not-allowed;
+}}
+
+.cart-wrap {{
+  padding: 16px;
+}}
+
+.cart-list {{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}}
+
+.cart-item {{
+  background: rgba(255,255,255,.76);
+  border: 1px solid rgba(200,169,107,.20);
+  border-radius: 18px;
+  padding: 12px;
+}}
+
+.cart-item-top {{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}}
+
+.cart-name {{
+  font-weight: 800;
+  font-size: 14px;
+}}
+
+.cart-meta {{
+  color: #6d615a;
+  font-size: 12px;
+  line-height: 1.45;
+}}
+
+.cart-remove {{
+  border: none;
+  cursor: pointer;
+  background: rgba(255,255,255,.88);
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  box-shadow: 0 6px 12px rgba(0,0,0,.05);
+}}
+
+.cart-empty {{
+  color: #7f7268;
+  font-size: 14px;
+  padding: 6px 2px 14px;
+}}
+
+.summary {{
+  border-top: 1px solid rgba(200,169,107,.18);
+  margin-top: 14px;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}}
+
+.summary-row {{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}}
+
+.checkout-box {{
+  margin-top: 16px;
+  border-top: 1px solid rgba(200,169,107,.18);
+  padding-top: 14px;
+}}
+
+.checkout-box-title {{
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 8px;
+}}
+
+.checkout-box-text {{
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}}
+
+.reviews-box, .social-box {{
+  margin-top: 16px;
+  padding: 18px;
+}}
+
+.reviews-title, .social-title {{
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}}
+
+.reviews-list {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+}}
+
+.review-card {{
+  background: rgba(255,255,255,.76);
+  border: 1px solid rgba(200,169,107,.18);
+  border-radius: 18px;
+  padding: 14px;
+}}
+
+.review-stars {{
+  font-size: 17px;
+  margin-bottom: 8px;
+}}
+
+.review-name {{
+  font-weight: 800;
+  margin-bottom: 6px;
+}}
+
+.review-text {{
+  color: #685b54;
+  line-height: 1.5;
+  font-size: 13px;
+}}
+
+.social-links {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}}
+
 .social-links a {{
-  text-decoration:none; padding:11px 16px; border-radius:999px; font-weight:800; font-size:13px;
-  background:linear-gradient(180deg, var(--gold), var(--gold-deep)); color:#fff; box-shadow:0 12px 24px rgba(169,128,52,.18);
+  text-decoration: none;
+  padding: 11px 16px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(159,109,22,.18);
 }}
+
 .notice {{
-  position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(10px); opacity:0; pointer-events:none;
-  background:#181311; color:#fff; padding:12px 16px; border-radius:999px; font-size:13px; z-index:999;
-  box-shadow:0 18px 34px rgba(0,0,0,.18); transition:.22s ease;
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%) translateY(10px);
+  opacity: 0;
+  pointer-events: none;
+  background: #181311;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 999;
+  box-shadow: 0 18px 34px rgba(0,0,0,.18);
+  transition: .22s ease;
 }}
-.notice.show {{ opacity:1; transform:translateX(-50%) translateY(0); }}
-@media (max-width: 920px) {{ .layout {{ grid-template-columns:1fr; }} }}
+
+.notice.show {{
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}}
+
+@media (max-width: 920px) {{
+  .layout {{
+    grid-template-columns: 1fr;
+  }}
+}}
+
 @media (max-width: 640px) {{
-  .grid, .reviews-list {{ grid-template-columns:1fr; }}
-  .action-row {{ grid-template-columns:1fr; }}
-  .hero {{ border-radius:0 0 24px 24px; padding:20px 16px 18px; }}
-  .panel-head {{ font-size:22px; }}
+  .grid, .reviews-list {{
+    grid-template-columns: 1fr;
+  }}
+
+  .action-row {{
+    grid-template-columns: 1fr;
+  }}
+
+  .hero {{
+    border-radius: 0 0 24px 24px;
+    padding: 20px 16px 18px;
+  }}
+
+  .panel-head {{
+    font-size: 22px;
+  }}
 }}
 </style>
 </head>
 <body>
-<div class="petals" id="petals"></div>
+<div class="flower-field" id="flowerField"></div>
+
 <div class="wrap">
   <div class="hero">
     <div class="hero-top">
@@ -1965,18 +2394,28 @@ body::before {{
       <div class="panel-head" id="catalogTitle">Каталог</div>
       <div class="panel-sub" id="catalogSub">Выберите размер, количество и добавьте товар в корзину или купите сразу.</div>
       <div class="filters" id="filters"></div>
-      <div class="catalog"><div class="grid" id="productGrid"></div></div>
+      <div class="catalog">
+        <div class="grid" id="productGrid"></div>
+      </div>
     </div>
 
     <div class="panel">
       <div class="panel-head" id="cartTitle">Корзина</div>
       <div class="cart-wrap">
         <div class="cart-list" id="cartList"></div>
-        <div class="cart-empty" id="cartEmpty">Корзина пуста</div>
+        <div class="cart-empty" id="cartEmpty">Ваша корзина пуста</div>
+
         <div class="summary">
-          <div class="summary-row"><span id="summaryQtyLabel">Всего товаров</span><b id="summaryQty">0</b></div>
-          <div class="summary-row"><span id="summaryAmountLabel">Сумма</span><b id="summaryAmount">0 сум</b></div>
+          <div class="summary-row">
+            <span id="summaryQtyLabel">Всего товаров</span>
+            <b id="summaryQty">0</b>
+          </div>
+          <div class="summary-row">
+            <span id="summaryAmountLabel">Сумма</span>
+            <b id="summaryAmount">0 сум</b>
+          </div>
         </div>
+
         <div class="checkout-box">
           <div class="checkout-box-title" id="checkoutBoxTitle">Оформление заказа</div>
           <div class="checkout-box-text" id="checkoutBoxText">Сначала добавьте товары в корзину. Затем нажмите кнопку ниже и бот продолжит оформление заказа.</div>
@@ -1997,11 +2436,15 @@ body::before {{
     <div class="social-links" id="socialLinks"></div>
   </div>
 </div>
+
 <div class="notice" id="notice"></div>
 
 <script>
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-if (tg) {{ tg.ready(); tg.expand(); }}
+if (tg) {{
+  tg.ready();
+  tg.expand();
+}}
 
 const params = new URLSearchParams(window.location.search);
 const lang = params.get("lang") || "ru";
@@ -2080,127 +2523,240 @@ const I18N = {{
 }};
 
 const TXT = I18N[lang] || I18N.ru;
-const state = {{ products: [], filteredProducts: [], cart: [], reviews: [], activeCategory: 'all' }};
+const state = {{
+  products: [],
+  filteredProducts: [],
+  cart: [],
+  reviews: [],
+  activeCategory: "all"
+}};
 
 function esc(v) {{
-  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }}
-function fmtSum(value) {{ return Number(value || 0).toLocaleString('ru-RU') + ' сум'; }}
+
+function fmtSum(value) {{
+  return Number(value || 0).toLocaleString("ru-RU") + " сум";
+}}
+
 function showNotice(text) {{
-  const n = document.getElementById('notice');
+  const n = document.getElementById("notice");
   n.textContent = text;
-  n.classList.add('show');
-  setTimeout(() => n.classList.remove('show'), 1800);
+  n.classList.add("show");
+  setTimeout(() => n.classList.remove("show"), 1800);
 }}
+
 function applyTexts() {{
-  document.getElementById('heroSub').textContent = TXT.heroSub;
-  document.getElementById('catalogTitle').textContent = TXT.catalogTitle;
-  document.getElementById('catalogSub').textContent = TXT.catalogSub;
-  document.getElementById('cartTitle').textContent = TXT.cartTitle;
-  document.getElementById('cartEmpty').textContent = TXT.cartEmpty;
-  document.getElementById('summaryQtyLabel').textContent = TXT.summaryQtyLabel;
-  document.getElementById('summaryAmountLabel').textContent = TXT.summaryAmountLabel;
-  document.getElementById('checkoutBoxTitle').textContent = TXT.checkoutBoxTitle;
-  document.getElementById('checkoutBoxText').textContent = TXT.checkoutBoxText;
-  document.getElementById('checkoutBtn').textContent = TXT.checkoutBtn;
-  document.getElementById('clearBtn').textContent = TXT.clearBtn;
-  document.getElementById('reviewsTitle').textContent = TXT.reviewsTitle;
-  document.getElementById('socialTitle').textContent = TXT.socialTitle;
+  document.getElementById("heroSub").textContent = TXT.heroSub;
+  document.getElementById("catalogTitle").textContent = TXT.catalogTitle;
+  document.getElementById("catalogSub").textContent = TXT.catalogSub;
+  document.getElementById("cartTitle").textContent = TXT.cartTitle;
+  document.getElementById("cartEmpty").textContent = TXT.cartEmpty;
+  document.getElementById("summaryQtyLabel").textContent = TXT.summaryQtyLabel;
+  document.getElementById("summaryAmountLabel").textContent = TXT.summaryAmountLabel;
+  document.getElementById("checkoutBoxTitle").textContent = TXT.checkoutBoxTitle;
+  document.getElementById("checkoutBoxText").textContent = TXT.checkoutBoxText;
+  document.getElementById("checkoutBtn").textContent = TXT.checkoutBtn;
+  document.getElementById("clearBtn").textContent = TXT.clearBtn;
+  document.getElementById("reviewsTitle").textContent = TXT.reviewsTitle;
+  document.getElementById("socialTitle").textContent = TXT.socialTitle;
 }}
-function buildPetals() {{
-  const root = document.getElementById('petals');
-  root.innerHTML = '';
-  for (let i = 0; i < 22; i += 1) {{
-    const node = document.createElement('span');
-    node.className = 'petal';
-    node.style.left = (Math.random() * 100).toFixed(2) + '%';
-    node.style.animationDuration = (7 + Math.random() * 9).toFixed(2) + 's';
-    node.style.animationDelay = (-Math.random() * 12).toFixed(2) + 's';
-    node.style.opacity = (0.28 + Math.random() * 0.6).toFixed(2);
-    node.style.setProperty('--drift', ((Math.random() * 140) - 70).toFixed(0) + 'px');
-    node.style.transform = `scale(${{(0.65 + Math.random() * 1.2).toFixed(2)}})`;
+
+function flowerSVG(type) {{
+  if (type === "daisy") {{
+    return `
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g>
+          <ellipse cx="32" cy="10" rx="7" ry="15" fill="#fff8ef"/>
+          <ellipse cx="32" cy="54" rx="7" ry="15" fill="#fff8ef"/>
+          <ellipse cx="10" cy="32" rx="15" ry="7" fill="#fff8ef"/>
+          <ellipse cx="54" cy="32" rx="15" ry="7" fill="#fff8ef"/>
+          <ellipse cx="17" cy="17" rx="7" ry="14" transform="rotate(-45 17 17)" fill="#fff8ef"/>
+          <ellipse cx="47" cy="17" rx="7" ry="14" transform="rotate(45 47 17)" fill="#fff8ef"/>
+          <ellipse cx="17" cy="47" rx="7" ry="14" transform="rotate(45 17 47)" fill="#fff8ef"/>
+          <ellipse cx="47" cy="47" rx="7" ry="14" transform="rotate(-45 47 47)" fill="#fff8ef"/>
+          <circle cx="32" cy="32" r="10" fill="#f3c548"/>
+          <circle cx="32" cy="32" r="5" fill="#d39a1f"/>
+        </g>
+      </svg>
+    `;
+  }}
+
+  if (type === "violet") {{
+    return `
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <g>
+          <ellipse cx="20" cy="20" rx="12" ry="10" fill="#8a63d2"/>
+          <ellipse cx="44" cy="20" rx="12" ry="10" fill="#7b54c7"/>
+          <ellipse cx="16" cy="40" rx="12" ry="10" fill="#9b79de"/>
+          <ellipse cx="48" cy="40" rx="12" ry="10" fill="#6f49bf"/>
+          <ellipse cx="32" cy="28" rx="10" ry="12" fill="#a789eb"/>
+          <circle cx="32" cy="33" r="6" fill="#ffd86a"/>
+        </g>
+      </svg>
+    `;
+  }}
+
+  if (type === "rosepetal") {{
+    return `
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="petalGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#ffb2cf"/>
+            <stop offset="55%" stop-color="#dc6aa0"/>
+            <stop offset="100%" stop-color="#9d3f73"/>
+          </linearGradient>
+        </defs>
+        <path d="M32 6 C48 10, 58 24, 53 40 C48 54, 34 60, 24 56 C12 50, 8 36, 13 23 C17 13, 23 8, 32 6 Z" fill="url(#petalGrad)"/>
+      </svg>
+    `;
+  }}
+
+  return `
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f6dfb0"/>
+          <stop offset="100%" stop-color="#cf9f49"/>
+        </linearGradient>
+      </defs>
+      <path d="M10 38 C16 16, 40 8, 54 12 C50 34, 38 50, 18 54 C12 50, 9 44, 10 38 Z" fill="url(#leafGrad)"/>
+    </svg>
+  `;
+}}
+
+function buildFlowers() {{
+  const root = document.getElementById("flowerField");
+  root.innerHTML = "";
+  const types = ["daisy", "violet", "rosepetal", "leaf"];
+
+  for (let i = 0; i < 28; i += 1) {{
+    const type = types[Math.floor(Math.random() * types.length)];
+    const node = document.createElement("div");
+    node.className = "flower";
+    const size = Math.random() * 26 + 18;
+    node.style.left = (Math.random() * 100).toFixed(2) + "%";
+    node.style.width = size.toFixed(0) + "px";
+    node.style.height = size.toFixed(0) + "px";
+    node.style.animationDuration = (8 + Math.random() * 9).toFixed(2) + "s";
+    node.style.animationDelay = (-Math.random() * 15).toFixed(2) + "s";
+    node.style.setProperty("--drift", ((Math.random() * 180) - 90).toFixed(0) + "px");
+    node.style.setProperty("--scale", (0.75 + Math.random() * 1.2).toFixed(2));
+    node.innerHTML = flowerSVG(type);
     root.appendChild(node);
   }}
 }}
+
 function buildFilters() {{
-  const box = document.getElementById('filters');
+  const box = document.getElementById("filters");
   const categories = [
-    {{key:'all', name:TXT.category_all}},
-    {{key:'new', name:TXT.category_new}},
-    {{key:'hits', name:TXT.category_hits}},
-    {{key:'sale', name:TXT.category_sale}},
-    {{key:'limited', name:TXT.category_limited}},
-    {{key:'school', name:TXT.category_school}},
-    {{key:'casual', name:TXT.category_casual}},
+    {{key:"all", name:TXT.category_all}},
+    {{key:"new", name:TXT.category_new}},
+    {{key:"hits", name:TXT.category_hits}},
+    {{key:"sale", name:TXT.category_sale}},
+    {{key:"limited", name:TXT.category_limited}},
+    {{key:"school", name:TXT.category_school}},
+    {{key:"casual", name:TXT.category_casual}}
   ];
-  box.innerHTML = '';
+
+  box.innerHTML = "";
+
   categories.forEach(cat => {{
-    const btn = document.createElement('button');
-    btn.className = 'filter-btn' + (state.activeCategory === cat.key ? ' active' : '');
+    const btn = document.createElement("button");
+    btn.className = "filter-btn" + (state.activeCategory === cat.key ? " active" : "");
     btn.textContent = cat.name;
-    btn.onclick = () => {{ state.activeCategory = cat.key; buildFilters(); applyFilter(); }};
+    btn.onclick = () => {{
+      state.activeCategory = cat.key;
+      buildFilters();
+      applyFilter();
+    }};
     box.appendChild(btn);
   }});
 }}
+
 function applyFilter() {{
-  state.filteredProducts = state.activeCategory === 'all'
+  state.filteredProducts = state.activeCategory === "all"
     ? [...state.products]
     : state.products.filter(p => p.category_slug === state.activeCategory);
   renderProducts();
 }}
+
 async function loadProducts() {{
   const res = await fetch(`/api/shop/products?lang=${{encodeURIComponent(lang)}}`);
   state.products = await res.json();
   buildFilters();
   applyFilter();
 }}
+
 async function loadCart() {{
-  if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) {{ renderCart(); return; }}
+  if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) {{
+    renderCart();
+    return;
+  }}
+
   const userId = tg.initDataUnsafe.user.id;
   const res = await fetch(`/api/shop/cart?user_id=${{encodeURIComponent(userId)}}`);
   const data = await res.json();
   state.cart = data.items || [];
   renderCart();
 }}
+
 async function loadReviews() {{
   const res = await fetch(`/api/shop/reviews?lang=${{encodeURIComponent(lang)}}`);
   state.reviews = await res.json();
   renderReviews();
 }}
+
 function sendPayload(payload) {{
-  if (!tg) {{ showNotice(TXT.startCheckoutMsg); return; }}
+  if (!tg) {{
+    showNotice(TXT.startCheckoutMsg);
+    return;
+  }}
   tg.sendData(JSON.stringify(payload));
 }}
+
 function renderProducts() {{
-  const grid = document.getElementById('productGrid');
-  grid.innerHTML = '';
+  const grid = document.getElementById("productGrid");
+  grid.innerHTML = "";
+
   if (!state.filteredProducts.length) {{
-    const empty = document.createElement('div');
-    empty.className = 'card';
+    const empty = document.createElement("div");
+    empty.className = "card";
     empty.innerHTML = `<div class="card-inner"><div class="card-desc">${{TXT.noProducts}}</div></div>`;
     grid.appendChild(empty);
     return;
   }}
+
   state.filteredProducts.forEach(product => {{
-    const card = document.createElement('div');
-    card.className = 'card';
+    const card = document.createElement("div");
+    card.className = "card";
+
     const sizes = Array.isArray(product.sizes_list) ? product.sizes_list : [];
-    const img = product.photo_url ? `<img src="${{esc(product.photo_url)}}" alt="">` : `<div class="photo-placeholder">${{TXT.noPhoto}}</div>`;
+    const img = product.photo_url
+      ? `<img src="${{esc(product.photo_url)}}" alt="">`
+      : `<div class="photo-placeholder">${{TXT.noPhoto}}</div>`;
+
     const sizesHtml = sizes.length
-      ? `<div class="sizes">${{sizes.map(s => `<button class="size-btn" data-size="${{esc(s)}}">${{esc(s)}}</button>`).join('')}}</div>`
-      : '';
+      ? `<div class="sizes">${{sizes.map(s => `<button class="size-btn" data-size="${{esc(s)}}">${{esc(s)}}</button>`).join("")}}</div>`
+      : "";
+
     card.innerHTML = `
       <div class="card-inner">
         <div class="photo">${{img}}</div>
         <div class="card-title">${{esc(product.title)}}</div>
-        <div class="card-desc">${{esc(product.description || '')}}</div>
+        <div class="card-desc">${{esc(product.description || "")}}</div>
         <div class="price-row">
           <div class="price current-total">${{fmtSum(product.price)}}</div>
-          ${{Number(product.old_price || 0) > 0 ? `<div class="old-price">${{fmtSum(product.old_price)}}</div>` : ''}}
+          ${{Number(product.old_price || 0) > 0 ? `<div class="old-price">${{fmtSum(product.old_price)}}</div>` : ""}}
         </div>
         <div class="meta">
           <div>${{TXT.stock}}: ${{Number(product.stock_qty || 0)}}</div>
-          <div>${{TXT.sizes}}: ${{sizes.length ? sizes.map(esc).join(', ') : '—'}}</div>
+          <div>${{TXT.sizes}}: ${{sizes.length ? sizes.map(esc).join(", ") : "—"}}</div>
         </div>
         ${{sizesHtml}}
         <div class="qty-row">
@@ -2212,128 +2768,182 @@ function renderProducts() {{
           <div class="meta">${{TXT.qty}}</div>
         </div>
         <div class="action-row">
-          <button class="buy-btn" ${{Number(product.stock_qty) <= 0 ? 'disabled' : ''}}>${{TXT.addToCart}}</button>
-          <button class="quick-btn" ${{Number(product.stock_qty) <= 0 ? 'disabled' : ''}}>${{TXT.buyNow}}</button>
+          <button class="buy-btn" ${{Number(product.stock_qty) <= 0 ? "disabled" : ""}}>${{TXT.addToCart}}</button>
+          <button class="quick-btn" ${{Number(product.stock_qty) <= 0 ? "disabled" : ""}}>${{TXT.buyNow}}</button>
         </div>
       </div>
     `;
+
     let qty = 1;
-    let activeSize = sizes.length ? String(sizes[0]) : '';
-    const qtyValue = card.querySelector('.qty-value');
-    const currentTotal = card.querySelector('.current-total');
-    const minus = card.querySelector('.minus');
-    const plus = card.querySelector('.plus');
-    function recalc() {{ currentTotal.textContent = fmtSum(Number(product.price || 0) * qty); qtyValue.textContent = String(qty); }}
-    minus.onclick = () => {{ qty = Math.max(1, qty - 1); recalc(); }};
-    plus.onclick = () => {{ qty = Math.min(99, qty + 1); recalc(); }};
-    const sizeButtons = card.querySelectorAll('.size-btn');
+    let activeSize = sizes.length ? String(sizes[0]) : "";
+
+    const qtyValue = card.querySelector(".qty-value");
+    const currentTotal = card.querySelector(".current-total");
+    const minus = card.querySelector(".minus");
+    const plus = card.querySelector(".plus");
+
+    function recalc() {{
+      currentTotal.textContent = fmtSum(Number(product.price || 0) * qty);
+      qtyValue.textContent = String(qty);
+    }}
+
+    minus.onclick = () => {{
+      qty = Math.max(1, qty - 1);
+      recalc();
+    }};
+
+    plus.onclick = () => {{
+      qty = Math.min(99, qty + 1);
+      recalc();
+    }};
+
+    const sizeButtons = card.querySelectorAll(".size-btn");
     sizeButtons.forEach((btn, index) => {{
-      if (index === 0) btn.classList.add('active');
+      if (index === 0) btn.classList.add("active");
       btn.onclick = () => {{
-        sizeButtons.forEach(x => x.classList.remove('active'));
-        btn.classList.add('active');
-        activeSize = btn.dataset.size || '';
+        sizeButtons.forEach(x => x.classList.remove("active"));
+        btn.classList.add("active");
+        activeSize = btn.dataset.size || "";
       }};
     }});
-    card.querySelector('.buy-btn').onclick = () => {{
-      if (sizes.length && !activeSize) {{ showNotice(TXT.chooseSize); return; }}
-      sendPayload({{ action:'add_to_cart', product_id:product.id, qty:qty, size:activeSize }});
+
+    card.querySelector(".buy-btn").onclick = () => {{
+      if (sizes.length && !activeSize) {{
+        showNotice(TXT.chooseSize);
+        return;
+      }}
+      sendPayload({{
+        action: "add_to_cart",
+        product_id: product.id,
+        qty: qty,
+        size: activeSize
+      }});
       showNotice(TXT.added);
       setTimeout(loadCart, 500);
     }};
-    card.querySelector('.quick-btn').onclick = () => {{
-      if (sizes.length && !activeSize) {{ showNotice(TXT.chooseSize); return; }}
-      sendPayload({{ action:'buy_now', product_id:product.id, qty:qty, size:activeSize }});
+
+    card.querySelector(".quick-btn").onclick = () => {{
+      if (sizes.length && !activeSize) {{
+        showNotice(TXT.chooseSize);
+        return;
+      }}
+      sendPayload({{
+        action: "buy_now",
+        product_id: product.id,
+        qty: qty,
+        size: activeSize
+      }});
       showNotice(TXT.added);
       setTimeout(loadCart, 500);
     }};
+
     grid.appendChild(card);
   }});
 }}
+
 function renderCart() {{
-  const list = document.getElementById('cartList');
-  const empty = document.getElementById('cartEmpty');
-  const badge = document.getElementById('cartBadge');
-  const qtyEl = document.getElementById('summaryQty');
-  const amountEl = document.getElementById('summaryAmount');
-  list.innerHTML = '';
+  const list = document.getElementById("cartList");
+  const empty = document.getElementById("cartEmpty");
+  const badge = document.getElementById("cartBadge");
+  const qtyEl = document.getElementById("summaryQty");
+  const amountEl = document.getElementById("summaryAmount");
+
+  list.innerHTML = "";
+
   let totalQty = 0;
   let totalAmount = 0;
+
   (state.cart || []).forEach(item => {{
     totalQty += Number(item.qty || 0);
     totalAmount += Number(item.subtotal || 0);
-    const div = document.createElement('div');
-    div.className = 'cart-item';
+
+    const div = document.createElement("div");
+    div.className = "cart-item";
     div.innerHTML = `
       <div class="cart-item-top">
         <div>
           <div class="cart-name">${{esc(item.product_name)}}</div>
-          <div class="cart-meta">${{item.size ? esc(item.size) + ' | ' : ''}}${{item.qty}} × ${{fmtSum(item.price)}}</div>
+          <div class="cart-meta">${{item.size ? esc(item.size) + " | " : ""}}${{item.qty}} × ${{fmtSum(item.price)}}</div>
         </div>
         <button class="cart-remove">×</button>
       </div>
       <div class="cart-meta">${{fmtSum(item.subtotal)}}</div>
     `;
-    div.querySelector('.cart-remove').onclick = () => {{
-      sendPayload({{ action:'remove_from_cart', cart_id:item.cart_id }});
+
+    div.querySelector(".cart-remove").onclick = () => {{
+      sendPayload({{
+        action: "remove_from_cart",
+        cart_id: item.cart_id
+      }});
       showNotice(TXT.removed);
       setTimeout(loadCart, 500);
     }};
+
     list.appendChild(div);
   }});
-  empty.style.display = state.cart.length ? 'none' : 'block';
+
+  empty.style.display = state.cart.length ? "none" : "block";
   badge.textContent = String(totalQty);
   qtyEl.textContent = String(totalQty);
   amountEl.textContent = fmtSum(totalAmount);
 }}
+
 function renderReviews() {{
-  const box = document.getElementById('reviewsList');
-  box.innerHTML = '';
+  const box = document.getElementById("reviewsList");
+  box.innerHTML = "";
+
   if (!state.reviews.length) {{
-    const div = document.createElement('div');
-    div.className = 'review-card';
+    const div = document.createElement("div");
+    div.className = "review-card";
     div.innerHTML = `<div class="review-text">${{TXT.noReviews}}</div>`;
     box.appendChild(div);
     return;
   }}
+
   state.reviews.forEach(item => {{
-    const div = document.createElement('div');
-    div.className = 'review-card';
+    const div = document.createElement("div");
+    div.className = "review-card";
     div.innerHTML = `
-      <div class="review-stars">${{esc(item.stars || '')}}</div>
-      <div class="review-name">${{esc(item.customer_name || 'Client')}}</div>
-      <div class="review-text">${{esc(item.text || '')}}</div>
+      <div class="review-stars">${{esc(item.stars || "")}}</div>
+      <div class="review-name">${{esc(item.customer_name || "Client")}}</div>
+      <div class="review-text">${{esc(item.text || "")}}</div>
     `;
     box.appendChild(div);
   }});
 }}
+
 function renderSocials() {{
-  const box = document.getElementById('socialLinks');
+  const box = document.getElementById("socialLinks");
+  box.innerHTML = "";
+
   const links = [
-    {{title:'Telegram', url:{json.dumps(CHANNEL_LINK or '')}}},
-    {{title:'Instagram', url:{json.dumps(INSTAGRAM_LINK or '')}}},
-    {{title:'YouTube', url:{json.dumps(YOUTUBE_LINK or '')}}},
+    {{title:"Telegram", url:{json.dumps(CHANNEL_LINK or "")}}},
+    {{title:"Instagram", url:{json.dumps(INSTAGRAM_LINK or "")}}},
+    {{title:"YouTube", url:{json.dumps(YOUTUBE_LINK or "")}}}
   ].filter(x => x.url);
-  box.innerHTML = '';
+
   links.forEach(item => {{
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = item.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
     a.textContent = item.title;
     box.appendChild(a);
   }});
 }}
-document.getElementById('clearBtn').onclick = () => {{
-  sendPayload({{ action:'clear_cart' }});
+
+document.getElementById("clearBtn").onclick = () => {{
+  sendPayload({{ action: "clear_cart" }});
   showNotice(TXT.cleared);
   setTimeout(loadCart, 500);
 }};
-document.getElementById('checkoutBtn').onclick = () => {{
-  sendPayload({{ action:'checkout' }});
+
+document.getElementById("checkoutBtn").onclick = () => {{
+  sendPayload({{ action: "checkout" }});
 }};
+
 applyTexts();
-buildPetals();
+buildFlowers();
 renderSocials();
 loadProducts();
 loadCart();
@@ -2342,7 +2952,6 @@ loadReviews();
 </body>
 </html>
 """
-
 
 # ============================================================
 # WEB ROUTES
