@@ -2823,10 +2823,6 @@ async def admin_toggle_product(message: Message) -> None:
     await message.answer(f"Товар #{product_id} теперь {'опубликован' if new_value else 'скрыт'}")
 
 
-@
-
-# ===== ЭТУ ЧАСТЬ ВСТАВЬ ПЕРЕД БЛОКОМ FALLBACK / STARTUP И ФИНАЛЬНЫМ main() =====
-
 # ============================================================
 # EXTRA DB / NOTIFY LOGS / MONTHLY LOG
 # ============================================================
