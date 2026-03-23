@@ -1745,20 +1745,21 @@ def build_shop_html() -> str:
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root {{
-  --bg-1: #fffaf2;
+  --bg-1: #fffaf3;
   --bg-2: #fff4ea;
-  --bg-3: #fff8f5;
-  --champagne: #f3e0bb;
-  --gold-1: #ffe7a3;
-  --gold-2: #d9b24f;
-  --gold-3: #9f6d16;
-  --text: #241b14;
-  --muted: #7b6c61;
-  --panel: rgba(255,255,255,.58);
-  --panel-strong: rgba(255,255,255,.72);
+  --bg-3: #fff8f6;
+  --glass: rgba(255,255,255,.60);
+  --glass-strong: rgba(255,255,255,.76);
   --line: rgba(201,166,111,.22);
-  --shadow: 0 18px 50px rgba(110, 79, 32, .12);
-  --shadow-soft: 0 10px 28px rgba(92, 62, 24, .08);
+  --text: #241b14;
+  --muted: #7f7167;
+  --gold-1: #fff8d6;
+  --gold-2: #ffe38a;
+  --gold-3: #efba3f;
+  --gold-4: #c9851d;
+  --gold-5: #7d4808;
+  --shadow: 0 18px 50px rgba(110,79,32,.12);
+  --shadow-soft: 0 10px 28px rgba(92,62,24,.08);
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
@@ -1777,9 +1778,9 @@ body {{
   color: var(--text);
   font-family: Inter, Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at 12% 12%, rgba(255, 233, 186, .55), transparent 24%),
-    radial-gradient(circle at 88% 18%, rgba(244, 210, 236, .35), transparent 24%),
-    radial-gradient(circle at 75% 80%, rgba(223, 216, 255, .28), transparent 20%),
+    radial-gradient(circle at 12% 12%, rgba(255,227,160,.45), transparent 24%),
+    radial-gradient(circle at 88% 18%, rgba(229,186,219,.22), transparent 24%),
+    radial-gradient(circle at 75% 80%, rgba(180,166,255,.14), transparent 18%),
     linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
   overflow-x: hidden;
 }}
@@ -1789,9 +1790,9 @@ body::before {{
   position: fixed;
   inset: -15%;
   background:
-    radial-gradient(circle at 30% 35%, rgba(255,255,255,.75), transparent 16%),
-    radial-gradient(circle at 75% 22%, rgba(255,236,194,.45), transparent 18%),
-    radial-gradient(circle at 60% 75%, rgba(229, 205, 255, .18), transparent 16%);
+    radial-gradient(circle at 32% 35%, rgba(255,255,255,.80), transparent 16%),
+    radial-gradient(circle at 76% 22%, rgba(255,236,194,.45), transparent 18%),
+    radial-gradient(circle at 58% 72%, rgba(232,213,255,.12), transparent 16%);
   filter: blur(30px);
   pointer-events: none;
   z-index: 0;
@@ -1813,7 +1814,7 @@ body::before {{
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   filter: drop-shadow(0 6px 12px rgba(0,0,0,.08));
-  opacity: .92;
+  opacity: .94;
 }}
 
 .flower svg {{
@@ -1828,11 +1829,11 @@ body::before {{
     opacity: 0;
   }}
   10% {{
-    opacity: .92;
+    opacity: .95;
   }}
   100% {{
     transform: translate3d(var(--drift), 112vh, 0) rotate(320deg) scale(var(--scale));
-    opacity: .06;
+    opacity: .08;
   }}
 }}
 
@@ -1849,10 +1850,12 @@ body::before {{
   overflow: hidden;
   padding: 28px 20px 22px;
   border-radius: 0 0 34px 34px;
-  background: linear-gradient(135deg, rgba(255,255,255,.68), rgba(255,249,239,.58));
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.84), rgba(255,248,233,.74)),
+    radial-gradient(circle at 82% 18%, rgba(255,216,116,.16), transparent 36%);
   backdrop-filter: blur(18px) saturate(160%);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid rgba(255,255,255,.62);
+  border: 1px solid rgba(255,255,255,.66);
   box-shadow: var(--shadow);
 }}
 
@@ -1863,7 +1866,7 @@ body::before {{
   top: -40px;
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, rgba(255, 228, 156, .25), transparent 68%);
+  background: radial-gradient(circle, rgba(255,228,156,.22), transparent 68%);
   filter: blur(12px);
 }}
 
@@ -1880,7 +1883,7 @@ body::before {{
   gap: 8px;
 }}
 
-.brand {
+.brand {{
   font-size: clamp(36px, 6.8vw, 58px);
   font-weight: 1000;
   letter-spacing: .14em;
@@ -1889,7 +1892,7 @@ body::before {{
   position: relative;
   display: inline-block;
   padding: 2px 0 8px;
-
+  isolation: isolate;
   background: linear-gradient(
     180deg,
     #fffef8 0%,
@@ -1902,7 +1905,6 @@ body::before {{
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-
   text-shadow:
     0 1px 0 rgba(255,255,255,.98),
     0 2px 0 rgba(255,245,205,.96),
@@ -1915,9 +1917,21 @@ body::before {{
     0 16px 30px rgba(96,55,6,.20),
     0 0 16px rgba(255,224,120,.40),
     0 0 30px rgba(255,210,90,.24);
-
   filter: saturate(1.35) contrast(1.1) brightness(1.08);
-}
+}}
+
+.brand::after {{
+  content: "";
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: 8px;
+  height: 16px;
+  background: radial-gradient(circle, rgba(214,153,40,.34) 0%, rgba(214,153,40,0) 76%);
+  filter: blur(9px);
+  z-index: -1;
+  pointer-events: none;
+}}
 
 .brand-sub {{
   color: var(--muted);
@@ -1938,8 +1952,8 @@ body::before {{
   color: #fff;
   font-weight: 900;
   font-size: 13px;
-  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
-  box-shadow: 0 12px 24px rgba(159,109,22,.32);
+  background: linear-gradient(180deg, #e2b74b, #9d6a16);
+  box-shadow: 0 12px 24px rgba(157,106,22,.32);
 }}
 
 .layout {{
@@ -1950,10 +1964,10 @@ body::before {{
 }}
 
 .panel, .reviews-box, .social-box {{
-  background: var(--panel);
+  background: var(--glass);
   backdrop-filter: blur(16px) saturate(165%);
   -webkit-backdrop-filter: blur(16px) saturate(165%);
-  border: 1px solid rgba(255,255,255,.62);
+  border: 1px solid rgba(255,255,255,.64);
   box-shadow: var(--shadow-soft);
   border-radius: var(--radius-xl);
 }}
@@ -1985,7 +1999,7 @@ body::before {{
   border-radius: 999px;
   font-weight: 700;
   font-size: 13px;
-  background: rgba(255,255,255,.78);
+  background: rgba(255,255,255,.82);
   color: #533f26;
   border: 1px solid rgba(200,169,107,.30);
   box-shadow: 0 6px 18px rgba(188,158,101,.08);
@@ -1997,7 +2011,7 @@ body::before {{
 }}
 
 .filter-btn.active {{
-  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  background: linear-gradient(180deg, #e2b74b, #9d6a16);
   color: #fff;
 }}
 
@@ -2012,8 +2026,8 @@ body::before {{
 }}
 
 .card {{
-  background: var(--panel-strong);
-  border: 1px solid rgba(255,255,255,.72);
+  background: var(--glass-strong);
+  border: 1px solid rgba(255,255,255,.74);
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 14px 34px rgba(133,96,49,.08);
@@ -2110,14 +2124,14 @@ body::before {{
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.84);
   color: #493626;
   border: 1px solid rgba(200,169,107,.28);
   transition: .2s ease;
 }}
 
 .size-btn.active {{
-  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  background: linear-gradient(180deg, #e2b74b, #9d6a16);
   color: #fff;
 }}
 
@@ -2132,7 +2146,7 @@ body::before {{
   display: flex;
   align-items: center;
   border-radius: 999px;
-  background: rgba(255,255,255,.80);
+  background: rgba(255,255,255,.82);
   border: 1px solid rgba(200,169,107,.26);
   overflow: hidden;
 }}
@@ -2180,9 +2194,9 @@ body::before {{
 }}
 
 .quick-btn {{
-  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  background: linear-gradient(180deg, #e2b74b, #9d6a16);
   color: #fff;
-  box-shadow: 0 12px 24px rgba(159,109,22,.22);
+  box-shadow: 0 12px 24px rgba(157,106,22,.22);
 }}
 
 .checkout-btn {{
@@ -2195,7 +2209,7 @@ body::before {{
 .clear-btn {{
   width: 100%;
   margin-top: 10px;
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.84);
   color: #2a2018;
   border: 1px solid rgba(200,169,107,.28);
 }}
@@ -2216,7 +2230,7 @@ body::before {{
 }}
 
 .cart-item {{
-  background: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.78);
   border: 1px solid rgba(200,169,107,.20);
   border-radius: 18px;
   padding: 12px;
@@ -2243,7 +2257,7 @@ body::before {{
 .cart-remove {{
   border: none;
   cursor: pointer;
-  background: rgba(255,255,255,.88);
+  background: rgba(255,255,255,.90);
   width: 34px;
   height: 34px;
   border-radius: 12px;
@@ -2308,7 +2322,7 @@ body::before {{
 }}
 
 .review-card {{
-  background: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.78);
   border: 1px solid rgba(200,169,107,.18);
   border-radius: 18px;
   padding: 14px;
@@ -2342,9 +2356,9 @@ body::before {{
   border-radius: 999px;
   font-weight: 800;
   font-size: 13px;
-  background: linear-gradient(180deg, var(--gold-2), var(--gold-3));
+  background: linear-gradient(180deg, #e2b74b, #9d6a16);
   color: #fff;
-  box-shadow: 0 12px 24px rgba(159,109,22,.18);
+  box-shadow: 0 12px 24px rgba(157,106,22,.18);
 }}
 
 .notice {{
@@ -2592,14 +2606,14 @@ function flowerSVG(type) {{
     return `
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
         <g>
-          <ellipse cx="32" cy="10" rx="7" ry="15" fill="#fff8ef"/>
-          <ellipse cx="32" cy="54" rx="7" ry="15" fill="#fff8ef"/>
-          <ellipse cx="10" cy="32" rx="15" ry="7" fill="#fff8ef"/>
-          <ellipse cx="54" cy="32" rx="15" ry="7" fill="#fff8ef"/>
-          <ellipse cx="17" cy="17" rx="7" ry="14" transform="rotate(-45 17 17)" fill="#fff8ef"/>
-          <ellipse cx="47" cy="17" rx="7" ry="14" transform="rotate(45 47 17)" fill="#fff8ef"/>
-          <ellipse cx="17" cy="47" rx="7" ry="14" transform="rotate(45 17 47)" fill="#fff8ef"/>
-          <ellipse cx="47" cy="47" rx="7" ry="14" transform="rotate(-45 47 47)" fill="#fff8ef"/>
+          <ellipse cx="32" cy="10" rx="7" ry="15" fill="#fff9f0"/>
+          <ellipse cx="32" cy="54" rx="7" ry="15" fill="#fff9f0"/>
+          <ellipse cx="10" cy="32" rx="15" ry="7" fill="#fff9f0"/>
+          <ellipse cx="54" cy="32" rx="15" ry="7" fill="#fff9f0"/>
+          <ellipse cx="17" cy="17" rx="7" ry="14" transform="rotate(-45 17 17)" fill="#fff9f0"/>
+          <ellipse cx="47" cy="17" rx="7" ry="14" transform="rotate(45 47 17)" fill="#fff9f0"/>
+          <ellipse cx="17" cy="47" rx="7" ry="14" transform="rotate(45 17 47)" fill="#fff9f0"/>
+          <ellipse cx="47" cy="47" rx="7" ry="14" transform="rotate(-45 47 47)" fill="#fff9f0"/>
           <circle cx="32" cy="32" r="10" fill="#f3c548"/>
           <circle cx="32" cy="32" r="5" fill="#d39a1f"/>
         </g>
@@ -2611,11 +2625,11 @@ function flowerSVG(type) {{
     return `
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
         <g>
-          <ellipse cx="20" cy="20" rx="12" ry="10" fill="#8a63d2"/>
-          <ellipse cx="44" cy="20" rx="12" ry="10" fill="#7b54c7"/>
-          <ellipse cx="16" cy="40" rx="12" ry="10" fill="#9b79de"/>
-          <ellipse cx="48" cy="40" rx="12" ry="10" fill="#6f49bf"/>
-          <ellipse cx="32" cy="28" rx="10" ry="12" fill="#a789eb"/>
+          <ellipse cx="20" cy="20" rx="12" ry="10" fill="#8962d8"/>
+          <ellipse cx="44" cy="20" rx="12" ry="10" fill="#744fc5"/>
+          <ellipse cx="16" cy="40" rx="12" ry="10" fill="#a07ae6"/>
+          <ellipse cx="48" cy="40" rx="12" ry="10" fill="#6a47bc"/>
+          <ellipse cx="32" cy="28" rx="10" ry="12" fill="#b092f0"/>
           <circle cx="32" cy="33" r="6" fill="#ffd86a"/>
         </g>
       </svg>
@@ -2627,9 +2641,9 @@ function flowerSVG(type) {{
       <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="petalGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#ffb2cf"/>
-            <stop offset="55%" stop-color="#dc6aa0"/>
-            <stop offset="100%" stop-color="#9d3f73"/>
+            <stop offset="0%" stop-color="#ffbad4"/>
+            <stop offset="55%" stop-color="#da6ea4"/>
+            <stop offset="100%" stop-color="#973a6f"/>
           </linearGradient>
         </defs>
         <path d="M32 6 C48 10, 58 24, 53 40 C48 54, 34 60, 24 56 C12 50, 8 36, 13 23 C17 13, 23 8, 32 6 Z" fill="url(#petalGrad)"/>
@@ -2972,6 +2986,7 @@ loadReviews();
 </body>
 </html>
 """
+
 
 # ============================================================
 # WEB ROUTES
