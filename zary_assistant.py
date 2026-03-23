@@ -1880,24 +1880,44 @@ body::before {{
   gap: 8px;
 }}
 
-.brand {{
-  font-size: clamp(32px, 6vw, 50px);
-  font-weight: 900;
-  letter-spacing: .12em;
+.brand {
+  font-size: clamp(36px, 6.8vw, 58px);
+  font-weight: 1000;
+  letter-spacing: .14em;
   text-transform: uppercase;
   line-height: 1;
-  background: linear-gradient(180deg, #fff6c9 0%, #ffd86a 20%, #d9a73a 55%, #8f5e12 100%);
+  position: relative;
+  display: inline-block;
+  padding: 2px 0 8px;
+
+  background: linear-gradient(
+    180deg,
+    #fffef8 0%,
+    #fff4c8 10%,
+    #ffe27e 24%,
+    #ffc93f 42%,
+    #e0a92f 58%,
+    #b87718 76%,
+    #7c4708 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+
   text-shadow:
-    0 1px 0 rgba(255,255,255,.95),
-    0 2px 0 rgba(246,219,152,.9),
-    0 3px 0 rgba(220,177,84,.82),
-    0 4px 0 rgba(176,124,33,.72),
-    0 10px 18px rgba(122,80,14,.24),
-    0 0 22px rgba(255,220,132,.42);
-  filter: saturate(1.18) brightness(1.04);
-}}
+    0 1px 0 rgba(255,255,255,.98),
+    0 2px 0 rgba(255,245,205,.96),
+    0 3px 0 rgba(255,228,138,.94),
+    0 4px 0 rgba(245,193,74,.90),
+    0 5px 0 rgba(214,150,33,.85),
+    0 6px 0 rgba(167,103,18,.78),
+    0 7px 0 rgba(112,63,8,.66),
+    0 10px 18px rgba(96,55,6,.24),
+    0 16px 30px rgba(96,55,6,.20),
+    0 0 16px rgba(255,224,120,.40),
+    0 0 30px rgba(255,210,90,.24);
+
+  filter: saturate(1.35) contrast(1.1) brightness(1.08);
+}
 
 .brand-sub {{
   color: var(--muted);
