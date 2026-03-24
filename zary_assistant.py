@@ -1701,6 +1701,63 @@ def admin_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
     )
 
 
+def admin_category_labels(lang: str) -> dict[str, str]:
+    lang = ensure_lang(lang)
+    if lang == "uz":
+        return {
+            "new": "🆕 Yangi",
+            "hits": "🔥 Xitlar",
+            "sale": "💸 Chegirma",
+            "limited": "✨ Limit",
+            "school": "🎓 Maktab",
+            "casual": "👕 Kundalik",
+        }
+    return {
+        "new": "🆕 Новинки",
+        "hits": "🔥 Хиты",
+        "sale": "💸 Скидки",
+        "limited": "✨ Лимит",
+        "school": "🎓 Школа",
+        "casual": "👕 Повседневное",
+    }
+
+
+def category_label_human(slug: str, lang: str = "ru") -> str:
+    labels = admin_category_labels(lang)
+    return labels.get(slug, slug or "—")
+
+
+def category_slug_from_admin_label(text: str) -> Optional[str]:
+    value = (text or "").strip()
+    if not value:
+        return None
+
+    lower_value = value.lower()
+    if lower_value in CATEGORY_SLUGS:
+        return lower_value
+
+    for lang in SUPPORTED_LANGS:
+        labels = admin_category_labels(lang)
+        for slug, label in labels.items():
+            if value == label:
+                return slug
+
+    return None
+
+
+def admin_category_keyboard(user_id: int) -> ReplyKeyboardMarkup:
+    labels = admin_category_labels(get_user_lang(user_id))
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=labels["new"]), KeyboardButton(text=labels["hits"])],
+            [KeyboardButton(text=labels["sale"]), KeyboardButton(text=labels["limited"])],
+            [KeyboardButton(text=labels["school"]), KeyboardButton(text=labels["casual"])],
+            [KeyboardButton(text=t(user_id, "cancel"))],
+        ],
+        resize_keyboard=True,
+    )
+
+
 def normalize_optional_admin_text(value: str) -> str:
     value = (value or "").strip()
     if value in {"-", "—"}:
@@ -1710,9 +1767,9 @@ def normalize_optional_admin_text(value: str) -> str:
 
 def parse_admin_publish_value(value: str) -> Optional[int]:
     v = (value or "").strip().lower()
-    if v in {"1", "да", "yes", "y", "опубликовать", "publish"}:
+    if v in {"1", "да", "yes", "y", "опубликовать", "publish", "ha"}:
         return 1
-    if v in {"0", "нет", "no", "n", "скрыть", "hide"}:
+    if v in {"0", "нет", "no", "n", "скрыть", "hide", "yo'q", "yoq"}:
         return 0
     return None
 
@@ -1870,6 +1927,21 @@ def update_order_payment_status(order_id: int, new_payment_status: str) -> bool:
     return ok
 
 
+def admin_product_card_text(row: sqlite3.Row, lang: str = "ru") -> str:
+    return (
+        f"🧷 <b>Товар #{row['id']}</b>\n\n"
+        f"<b>RU:</b> {html.escape(row['title_ru'])}\n"
+        f"<b>UZ:</b> {html.escape(row['title_uz'])}\n"
+        f"<b>Цена:</b> {fmt_sum(row['price'])}\n"
+        f"<b>Старая цена:</b> {fmt_sum(row['old_price']) if safe_int(row['old_price']) > 0 else '—'}\n"
+        f"<b>Размеры:</b> {html.escape(row['sizes'] or '—')}\n"
+        f"<b>Категория:</b> {html.escape(category_label_human(row['category_slug'] or '', lang))}\n"
+        f"<b>Остаток:</b> {row['stock_qty']}\n"
+        f"<b>Опубликован:</b> {'Да' if safe_int(row['is_published']) else 'Нет'}\n"
+        f"<b>Сортировка:</b> {row['sort_order']}"
+    )
+
+
 def admin_edit_intro_text(row: sqlite3.Row) -> str:
     return (
         f"✏️ <b>Редактирование товара #{row['id']}</b>\n\n"
@@ -1877,7 +1949,7 @@ def admin_edit_intro_text(row: sqlite3.Row) -> str:
         f"<b>Текущее название UZ:</b> {html.escape(row['title_uz'])}\n"
         f"<b>Цена:</b> {fmt_sum(row['price'])}\n"
         f"<b>Размеры:</b> {html.escape(row['sizes'] or '—')}\n"
-        f"<b>Категория:</b> {html.escape(row['category_slug'])}\n"
+        f"<b>Категория:</b> {html.escape(category_label_human(row['category_slug'] or '', 'ru'))}\n"
         f"<b>Остаток:</b> {row['stock_qty']}\n"
         f"<b>Публикация:</b> {'Да' if safe_int(row['is_published']) else 'Нет'}\n\n"
         f"Сейчас начнётся полное редактирование товара по всем полям."
@@ -2084,6 +2156,13 @@ async def admin_products_handler(message: Message, state: FSMContext) -> None:
     rows = get_all_products(limit=50)
     await message.answer(
         "📦 <b>Управление товарами</b>\n\n"
+        "Теперь при добавлении товара ты явно выбираешь раздел:\n"
+        "• Новинки\n"
+        "• Хиты\n"
+        "• Скидки\n"
+        "• Лимит\n"
+        "• Школа\n"
+        "• Повседневное\n\n"
         "Здесь ты можешь:\n"
         "• добавить новый товар\n"
         "• полностью редактировать товар\n"
@@ -2098,7 +2177,7 @@ async def admin_products_handler(message: Message, state: FSMContext) -> None:
 
     for row in rows:
         await message.answer(
-            product_card_text(row),
+            admin_product_card_text(row, "ru"),
             reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]),
         )
 
@@ -2115,7 +2194,8 @@ async def admin_product_add_start(callback: CallbackQuery, state: FSMContext) ->
 
     await callback.message.answer(
         "➕ <b>Создание нового товара</b>\n\n"
-        "1/11. Введите название товара на русском."
+        "1/11. Введите название товара на русском.",
+        reply_markup=cancel_keyboard(callback.from_user.id),
     )
     await callback.answer()
 
@@ -2141,7 +2221,10 @@ async def admin_product_edit_start(callback: CallbackQuery, state: FSMContext) -
     await state.set_state(AdminProductStates.title_ru)
 
     await callback.message.answer(admin_edit_intro_text(row))
-    await callback.message.answer("1/11. Введите новое название товара на русском.")
+    await callback.message.answer(
+        "1/11. Введите новое название товара на русском.",
+        reply_markup=cancel_keyboard(callback.from_user.id),
+    )
     await callback.answer()
 
 
@@ -2222,7 +2305,7 @@ async def admin_product_title_ru_handler(message: Message, state: FSMContext) ->
 
     await state.update_data(title_ru=value)
     await state.set_state(AdminProductStates.title_uz)
-    await message.answer("2/11. Введите название товара на узбекском.")
+    await message.answer("2/11. Введите название товара на узбекском.", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.title_uz)
@@ -2237,7 +2320,7 @@ async def admin_product_title_uz_handler(message: Message, state: FSMContext) ->
 
     await state.update_data(title_uz=value)
     await state.set_state(AdminProductStates.description_ru)
-    await message.answer("3/11. Введите описание на русском или отправьте '-' если пусто.")
+    await message.answer("3/11. Введите описание на русском или отправьте '-' если пусто.", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.description_ru)
@@ -2248,7 +2331,7 @@ async def admin_product_description_ru_handler(message: Message, state: FSMConte
     value = normalize_optional_admin_text(message.text or "")
     await state.update_data(description_ru=value)
     await state.set_state(AdminProductStates.description_uz)
-    await message.answer("4/11. Введите описание на узбекском или отправьте '-' если пусто.")
+    await message.answer("4/11. Введите описание на узбекском или отправьте '-' если пусто.", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.description_uz)
@@ -2263,7 +2346,8 @@ async def admin_product_description_uz_handler(message: Message, state: FSMConte
         "5/11. Введите размеры через запятую.\n\n"
         "Пример:\n"
         "<code>110, 116, 122, 128</code>\n\n"
-        "Если размеров нет — отправьте '-'."
+        "Если размеров нет — отправьте '-'.",
+        reply_markup=cancel_keyboard(message.from_user.id),
     )
 
 
@@ -2276,8 +2360,8 @@ async def admin_product_sizes_handler(message: Message, state: FSMContext) -> No
     await state.update_data(sizes=value)
     await state.set_state(AdminProductStates.category_slug)
     await message.answer(
-        "6/11. Введите категорию.\n\n"
-        f"Допустимые значения:\n<code>{', '.join(CATEGORY_SLUGS)}</code>"
+        "6/11. Выберите раздел, куда загрузить товар.",
+        reply_markup=admin_category_keyboard(message.from_user.id),
     )
 
 
@@ -2286,14 +2370,27 @@ async def admin_product_category_handler(message: Message, state: FSMContext) ->
     if await maybe_cancel_state(message, state, admin_back=True):
         return
 
-    value = (message.text or "").strip().lower()
-    if value not in CATEGORY_SLUGS:
-        await message.answer(f"Неверная категория.\nДопустимо только: <code>{', '.join(CATEGORY_SLUGS)}</code>")
+    slug = category_slug_from_admin_label(message.text or "")
+    if not slug:
+        await message.answer(
+            "Нужно выбрать одну категорию кнопкой ниже:\n"
+            "• Новинки\n"
+            "• Хиты\n"
+            "• Скидки\n"
+            "• Лимит\n"
+            "• Школа\n"
+            "• Повседневное",
+            reply_markup=admin_category_keyboard(message.from_user.id),
+        )
         return
 
-    await state.update_data(category_slug=value)
+    await state.update_data(category_slug=slug)
     await state.set_state(AdminProductStates.price)
-    await message.answer("7/11. Введите цену товара числом. Пример: <code>289000</code>")
+    await message.answer(
+        f"Выбрана категория: <b>{html.escape(category_label_human(slug, 'ru'))}</b>\n\n"
+        "7/11. Введите цену товара числом. Пример: <code>289000</code>",
+        reply_markup=cancel_keyboard(message.from_user.id),
+    )
 
 
 @admin_router.message(AdminProductStates.price)
@@ -2308,7 +2405,7 @@ async def admin_product_price_handler(message: Message, state: FSMContext) -> No
 
     await state.update_data(price=value)
     await state.set_state(AdminProductStates.old_price)
-    await message.answer("8/11. Введите старую цену числом. Если старой цены нет — отправьте <code>0</code>")
+    await message.answer("8/11. Введите старую цену числом. Если старой цены нет — отправьте <code>0</code>", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.old_price)
@@ -2323,7 +2420,7 @@ async def admin_product_old_price_handler(message: Message, state: FSMContext) -
 
     await state.update_data(old_price=value)
     await state.set_state(AdminProductStates.stock_qty)
-    await message.answer("9/11. Введите остаток на складе. Пример: <code>15</code>")
+    await message.answer("9/11. Введите остаток на складе. Пример: <code>15</code>", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.stock_qty)
@@ -2346,12 +2443,14 @@ async def admin_product_stock_handler(message: Message, state: FSMContext) -> No
             "10/11. Отправьте новое фото товара.\n\n"
             "Либо отправьте:\n"
             "• <code>skip</code> — оставить текущее фото\n"
-            "• <code>-</code> — удалить фото"
+            "• <code>-</code> — удалить фото",
+            reply_markup=cancel_keyboard(message.from_user.id),
         )
     else:
         await message.answer(
             "10/11. Отправьте фото товара.\n\n"
-            "Если фото пока нет — отправьте <code>-</code>"
+            "Если фото пока нет — отправьте <code>-</code>",
+            reply_markup=cancel_keyboard(message.from_user.id),
         )
 
 
@@ -2382,7 +2481,10 @@ async def admin_product_photo_handler(message: Message, state: FSMContext) -> No
 
     await state.update_data(photo_file_id=photo_file_id)
     await state.set_state(AdminProductStates.is_published)
-    await message.answer("11/11. Публикация товара: отправьте <code>1</code> для публикации или <code>0</code> чтобы скрыть.")
+    await message.answer(
+        "11/11. Публикация товара: отправьте <code>1</code> для публикации или <code>0</code> чтобы скрыть.",
+        reply_markup=cancel_keyboard(message.from_user.id),
+    )
 
 
 @admin_router.message(AdminProductStates.is_published)
@@ -2397,7 +2499,7 @@ async def admin_product_is_published_handler(message: Message, state: FSMContext
 
     await state.update_data(is_published=value)
     await state.set_state(AdminProductStates.sort_order)
-    await message.answer("Финал. Введите sort_order. Пример: <code>10</code>")
+    await message.answer("Финал. Введите sort_order. Пример: <code>10</code>", reply_markup=cancel_keyboard(message.from_user.id))
 
 
 @admin_router.message(AdminProductStates.sort_order)
@@ -2426,7 +2528,10 @@ async def admin_product_sort_order_handler(message: Message, state: FSMContext) 
         row = get_product_by_id(product_id)
         await message.answer(f"✅ Товар #{product_id} обновлён.", reply_markup=admin_main_menu(message.from_user.id))
         if row:
-            await message.answer(product_card_text(row), reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]))
+            await message.answer(
+                admin_product_card_text(row, "ru"),
+                reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]),
+            )
         return
 
     product_id = create_product_record(payload)
@@ -2435,7 +2540,10 @@ async def admin_product_sort_order_handler(message: Message, state: FSMContext) 
     row = get_product_by_id(product_id)
     await message.answer(f"✅ Новый товар #{product_id} создан.", reply_markup=admin_main_menu(message.from_user.id))
     if row:
-        await message.answer(product_card_text(row), reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]))
+        await message.answer(
+            admin_product_card_text(row, "ru"),
+            reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]),
+        )
 
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_reviews'], TEXTS['uz']['admin_reviews']]))
