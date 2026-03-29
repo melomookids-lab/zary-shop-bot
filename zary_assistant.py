@@ -6,11 +6,15 @@ import html
 import asyncio
 import logging
 import sqlite3
+import secrets
 from pathlib import Path
-from typing import Any, Optional
-from datetime import datetime, timezone
+from typing import Any, Optional, Dict, List, Tuple
+from datetime import datetime, timezone, timedelta
+from functools import lru_cache
+from collections import defaultdict
+import hashlib
 
-from aiohttp import web
+from aiohttp import web, ClientSession
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -50,7 +54,10 @@ PORT = int(os.getenv("PORT", "8080"))
 
 SHOP_BRAND = os.getenv("SHOP_BRAND", "ZARY & CO").strip() or "ZARY & CO"
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ru").strip() or "ru"
-ADMIN_PANEL_TOKEN = os.getenv("ADMIN_PANEL_TOKEN", "").strip()
+
+# FIX #5: Улучшенная админ-авторизация (не передаём токен в URL)
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()  # Новый параметр
+ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", secrets.token_urlsafe(32))
 
 CHANNEL_LINK = os.getenv("CHANNEL_LINK", "").strip()
 INSTAGRAM_LINK = os.getenv("INSTAGRAM_LINK", "").strip()
@@ -80,280 +87,39 @@ if not BOT_TOKEN:
 if not BASE_URL:
     logger.warning("BASE_URL is empty. WebApp button will not work correctly until you set it.")
 
+# FIX #9: Rate limiting
+RATE_LIMIT_CALLS = int(os.getenv("RATE_LIMIT_CALLS", "10"))
+RATE_LIMIT_PERIOD = int(os.getenv("RATE_LIMIT_PERIOD", "60"))  # seconds
+rate_limit_storage: Dict[int, List[float]] = defaultdict(list)
 
-# ============================================================
-# BOT / ROUTERS
-# ============================================================
-
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
-
-user_router = Router()
-cart_router = Router()
-checkout_router = Router()
-reviews_router = Router()
-orders_router = Router()
-admin_router = Router()
-fallback_router = Router()
-web_router = web.RouteTableDef()
+# FIX #8: Кеш для file_id -> url
+photo_url_cache: Dict[str, Tuple[str, float]] = {}  # file_id -> (url, expires_at)
+CACHE_TTL = 3600  # 1 hour
 
 
 # ============================================================
-# TEXTS
+# RATE LIMITING (FIX #15)
 # ============================================================
 
-TEXTS: dict[str, dict[str, str]] = {
-    "ru": {
-        "menu_shop": "🛍 Магазин",
-        "menu_cart": "🛒 Корзина",
-        "menu_orders": "📦 Мои заказы",
-        "menu_reviews": "⭐ Отзывы",
-        "menu_leave_review": "✍️ Оставить отзыв",
-        "menu_size": "📏 Подбор размера",
-        "menu_contacts": "📞 Контакты",
-        "menu_lang": "🌐 Язык",
-        "menu_admin": "🛠 Админ",
-        "welcome": f"Добро пожаловать в <b>{SHOP_BRAND}</b>\n\nПремиальный магазин одежды внутри Telegram.",
-        "main_menu_hint": "Выберите нужный раздел в меню ниже.",
-        "choose_lang": "Выберите язык.",
-        "lang_updated": "Язык обновлён.",
-        "cart_empty": "Ваша корзина пуста.",
-        "cart_item_added": "Товар добавлен в корзину.",
-        "cart_same_item_merged": "Количество товара в корзине обновлено.",
-        "cart_removed": "Позиция удалена из корзины.",
-        "cart_cleared": "Корзина очищена.",
-        "cart_bad_payload": "Не удалось обработать данные магазина.",
-        "cart_item_not_found": "Товар не найден.",
-        "cart_item_no_stock": "Товар временно недоступен.",
-        "cart_size_required": "Нужно выбрать размер.",
-        "cart_invalid_qty": "Некорректное количество.",
-        "cart_empty_for_checkout": "Корзина пуста. Сначала добавьте товар.",
-        "cart_title": "🛒 <b>Ваша корзина</b>",
-        "cart_total_qty": "Всего товаров",
-        "cart_total_amount": "Сумма",
-        "cart_checkout": "Оформить заказ",
-        "cart_clear": "Очистить корзину",
-        "order_number": "Номер заказа",
-        "order_date": "Дата",
-        "order_status": "Статус заказа",
-        "order_payment_method": "Способ оплаты",
-        "order_payment_status": "Статус оплаты",
-        "order_delivery_service": "Способ доставки",
-        "order_total_amount": "Сумма",
-        "order_items": "Товары",
-        "my_orders_title": "📦 <b>Мои заказы</b>",
-        "my_orders_empty": "У вас пока нет заказов.",
-        "order_created_title": "✅ <b>Спасибо за покупку!</b>",
-        "order_created_text": "Мы рады, что вы с нами. Носите с удовольствием и с любовью от ZARY & CO.",
-        "order_links_text": "Чтобы не потерять нас, подпишитесь на наши каналы.",
-        "checkout_intro": "Начинаем оформление заказа.",
-        "checkout_name": "Введите имя получателя.",
-        "checkout_phone": "Введите телефон в формате +998...",
-        "checkout_delivery": "Выберите способ доставки.",
-        "checkout_address_type": "Как указать адрес?",
-        "checkout_city": "Введите город.",
-        "checkout_address": "Введите адрес вручную.",
-        "checkout_location": "Отправьте локацию кнопкой ниже.",
-        "checkout_payment": "Выберите способ оплаты.",
-        "checkout_comment": "Введите комментарий или нажмите «Пропустить».",
-        "checkout_invalid_phone": "Телефон выглядит некорректно. Пример: +998901234567",
-        "checkout_invalid_choice": "Выберите один из предложенных вариантов.",
-        "checkout_need_location": "Нужно отправить именно локацию.",
-        "checkout_summary": "🧾 <b>Проверка заказа</b>",
-        "checkout_confirm_hint": "Напишите «Да» для подтверждения или «Нет» для отмены.",
-        "checkout_cancelled": "Оформление заказа отменено.",
-        "checkout_confirm_yes": "Да",
-        "checkout_confirm_no": "Нет",
-        "checkout_name_label": "Имя",
-        "checkout_phone_label": "Телефон",
-        "checkout_city_label": "Город",
-        "checkout_delivery_label": "Доставка",
-        "checkout_address_type_label": "Тип адреса",
-        "checkout_address_label": "Адрес",
-        "checkout_location_label": "Локация",
-        "checkout_payment_label": "Оплата",
-        "checkout_comment_label": "Комментарий",
-        "checkout_total_label": "Сумма",
-        "checkout_items_label": "Товары",
-        "delivery_courier": "🚚 Курьер",
-        "delivery_pickup": "🏪 Самовывоз / ПВЗ",
-        "address_location": "📍 Отправить локацию",
-        "address_manual": "✍️ Ввести адрес вручную",
-        "payment_click": "Click",
-        "payment_payme": "Payme",
-        "payment_cash": "Наличными",
-        "review_rating_ask": "Выберите оценку от 1 до 5.",
-        "review_text_ask": "Напишите текст отзыва.",
-        "review_sent": "Спасибо. Ваш отзыв отправлен на модерацию.",
-        "review_bad_rating": "Нужно выбрать оценку от 1 до 5.",
-        "reviews_title": "⭐ <b>Отзывы покупателей</b>",
-        "reviews_empty": "Пока отзывов нет.",
-        "cancel": "❌ Отмена",
-        "skip": "Пропустить",
-        "yes": "Да",
-        "no": "Нет",
-        "action_cancelled": "Действие отменено.",
-        "size_intro": "Подбор размера работает по возрасту или росту.\n\nПримеры:\n• 5\n• 128",
-        "size_result_age": "По возрасту рекомендуемый размер",
-        "size_result_height": "По росту рекомендуемый размер",
-        "size_not_found": "Не смог подобрать размер. Введите возраст 3–10 или рост 98–146.",
-        "size_hint_extra": "Если сомневаетесь, лучше взять размер чуть больше.",
-        "contacts_title": "📞 <b>Контакты</b>",
-        "contacts_phone": "Телефон",
-        "contacts_manager": "Telegram менеджера",
-        "contacts_channel": "Telegram канал",
-        "contacts_instagram": "Instagram",
-        "contacts_youtube": "YouTube",
-        "send_start_again": "Отправьте /start, чтобы открыть меню.",
-        "not_admin": "Эта команда доступна только администратору.",
-        "admin_title": "🛠 <b>Админ панель</b>",
-        "admin_stats": "📊 Статистика",
-        "admin_products": "📦 Товары",
-        "admin_orders": "📋 Заказы",
-        "admin_reviews": "⭐ Отзывы",
-        "admin_back_to_user": "⬅️ В меню",
-        "status_new": "Новый",
-        "status_processing": "В обработке",
-        "status_confirmed": "Подтверждён",
-        "status_paid": "Оплачен",
-        "status_sent": "Отправлен",
-        "status_delivered": "Доставлен",
-        "status_cancelled": "Отменён",
-        "payment_status_pending": "Ожидает оплаты",
-        "payment_status_paid": "Оплачен",
-        "payment_status_failed": "Ошибка оплаты",
-        "payment_status_cancelled": "Отменён",
-        "payment_status_refunded": "Возврат",
-    },
-    "uz": {
-        "menu_shop": "🛍 Do'kon",
-        "menu_cart": "🛒 Savatcha",
-        "menu_orders": "📦 Buyurtmalarim",
-        "menu_reviews": "⭐ Sharhlar",
-        "menu_leave_review": "✍️ Sharh qoldirish",
-        "menu_size": "📏 O'lcham tanlash",
-        "menu_contacts": "📞 Kontaktlar",
-        "menu_lang": "🌐 Til",
-        "menu_admin": "🛠 Admin",
-        "welcome": f"<b>{SHOP_BRAND}</b> ga xush kelibsiz.\n\nTelegram ichidagi premium kiyim do'koni.",
-        "main_menu_hint": "Quyidagi menyudan kerakli bo'limni tanlang.",
-        "choose_lang": "Tilni tanlang.",
-        "lang_updated": "Til yangilandi.",
-        "cart_empty": "Savatchangiz bo'sh.",
-        "cart_item_added": "Mahsulot savatchaga qo'shildi.",
-        "cart_same_item_merged": "Savatchadagi mahsulot soni yangilandi.",
-        "cart_removed": "Pozitsiya savatchadan o'chirildi.",
-        "cart_cleared": "Savatcha tozalandi.",
-        "cart_bad_payload": "Do'kon ma'lumotlarini qayta ishlab bo'lmadi.",
-        "cart_item_not_found": "Mahsulot topilmadi.",
-        "cart_item_no_stock": "Mahsulot vaqtincha mavjud emas.",
-        "cart_size_required": "O'lcham tanlanishi kerak.",
-        "cart_invalid_qty": "Noto'g'ri son.",
-        "cart_empty_for_checkout": "Savatcha bo'sh. Avval mahsulot qo'shing.",
-        "cart_title": "🛒 <b>Savatchangiz</b>",
-        "cart_total_qty": "Jami mahsulot",
-        "cart_total_amount": "Summa",
-        "cart_checkout": "Buyurtma berish",
-        "cart_clear": "Savatchani tozalash",
-        "order_number": "Buyurtma raqami",
-        "order_date": "Sana",
-        "order_status": "Buyurtma holati",
-        "order_payment_method": "To'lov usuli",
-        "order_payment_status": "To'lov holati",
-        "order_delivery_service": "Yetkazib berish",
-        "order_total_amount": "Summa",
-        "order_items": "Mahsulotlar",
-        "my_orders_title": "📦 <b>Buyurtmalarim</b>",
-        "my_orders_empty": "Sizda hozircha buyurtmalar yo'q.",
-        "order_created_title": "✅ <b>Xaridingiz uchun rahmat!</b>",
-        "order_created_text": "Siz biz bilan ekaningizdan xursandmiz. Mahsulotni mamnuniyat bilan kiying.",
-        "order_links_text": "Bizni yo'qotib qo'ymaslik uchun kanallarimizga obuna bo'ling.",
-        "checkout_intro": "Buyurtma rasmiylashtirishni boshlaymiz.",
-        "checkout_name": "Qabul qiluvchi ismini kiriting.",
-        "checkout_phone": "Telefon raqamini +998... ko'rinishida kiriting.",
-        "checkout_delivery": "Yetkazib berish usulini tanlang.",
-        "checkout_address_type": "Manzilni qanday kiritasiz?",
-        "checkout_city": "Shaharni kiriting.",
-        "checkout_address": "Manzilni qo'lda kiriting.",
-        "checkout_location": "Quyidagi tugma orqali lokatsiya yuboring.",
-        "checkout_payment": "To'lov usulini tanlang.",
-        "checkout_comment": "Izoh yozing yoki «Propuстить» o'rniga tugmani bosing.",
-        "checkout_invalid_phone": "Telefon noto'g'ri ko'rinadi. Misol: +998901234567",
-        "checkout_invalid_choice": "Taklif qilingan variantlardan birini tanlang.",
-        "checkout_need_location": "Aynan lokatsiya yuborilishi kerak.",
-        "checkout_summary": "🧾 <b>Buyurtmani tekshirish</b>",
-        "checkout_confirm_hint": "Tasdiqlash uchun «Ha», bekor qilish uchun «Yo'q» deb yozing.",
-        "checkout_cancelled": "Buyurtma rasmiylashtirish bekor qilindi.",
-        "checkout_confirm_yes": "Ha",
-        "checkout_confirm_no": "Yo'q",
-        "checkout_name_label": "Ism",
-        "checkout_phone_label": "Telefon",
-        "checkout_city_label": "Shahar",
-        "checkout_delivery_label": "Yetkazib berish",
-        "checkout_address_type_label": "Manzil turi",
-        "checkout_address_label": "Manzil",
-        "checkout_location_label": "Lokatsiya",
-        "checkout_payment_label": "To'lov",
-        "checkout_comment_label": "Izoh",
-        "checkout_total_label": "Summa",
-        "checkout_items_label": "Mahsulotlar",
-        "delivery_courier": "🚚 Kuryer",
-        "delivery_pickup": "🏪 Olib ketish / PVZ",
-        "address_location": "📍 Lokatsiya yuborish",
-        "address_manual": "✍️ Manzilni qo'lda kiritish",
-        "payment_click": "Click",
-        "payment_payme": "Payme",
-        "payment_cash": "Naqd",
-        "review_rating_ask": "1 dan 5 gacha bahoni tanlang.",
-        "review_text_ask": "Sharh matnini yozing.",
-        "review_sent": "Rahmat. Sharhingiz moderatsiyaga yuborildi.",
-        "review_bad_rating": "1 dan 5 gacha bahoni tanlash kerak.",
-        "reviews_title": "⭐ <b>Xaridorlar sharhlari</b>",
-        "reviews_empty": "Hozircha sharhlar yo'q.",
-        "cancel": "❌ Bekor qilish",
-        "skip": "O'tkazib yuborish",
-        "yes": "Ha",
-        "no": "Yo'q",
-        "action_cancelled": "Amal bekor qilindi.",
-        "size_intro": "O'lcham tanlash yosh yoki bo'y bo'yicha ishlaydi.\n\nMisollar:\n• 5\n• 128",
-        "size_result_age": "Yosh bo'yicha tavsiya etilgan o'lcham",
-        "size_result_height": "Bo'y bo'yicha tavsiya etilgan o'lcham",
-        "size_not_found": "O'lcham topilmadi. 3–10 yosh yoki 98–146 bo'yni kiriting.",
-        "size_hint_extra": "Ikki o'lcham oralig'ida bo'lsa, kattaroq variantni oling.",
-        "contacts_title": "📞 <b>Kontaktlar</b>",
-        "contacts_phone": "Telefon",
-        "contacts_manager": "Telegram menejer",
-        "contacts_channel": "Telegram kanal",
-        "contacts_instagram": "Instagram",
-        "contacts_youtube": "YouTube",
-        "send_start_again": "Menyuni ochish uchun /start yuboring.",
-        "not_admin": "Bu bo'lim faqat administrator uchun.",
-        "admin_title": "🛠 <b>Admin panel</b>",
-        "admin_stats": "📊 Statistika",
-        "admin_products": "📦 Mahsulotlar",
-        "admin_orders": "📋 Buyurtmalar",
-        "admin_reviews": "⭐ Sharhlar",
-        "admin_back_to_user": "⬅️ Menyuga",
-        "status_new": "Yangi",
-        "status_processing": "Jarayonda",
-        "status_confirmed": "Tasdiqlangan",
-        "status_paid": "To'langan",
-        "status_sent": "Yuborilgan",
-        "status_delivered": "Yetkazilgan",
-        "status_cancelled": "Bekor qilingan",
-        "payment_status_pending": "To'lov kutilmoqda",
-        "payment_status_paid": "To'langan",
-        "payment_status_failed": "To'lov xatosi",
-        "payment_status_cancelled": "Bekor qilingan",
-        "payment_status_refunded": "Qaytarilgan",
-    },
-}
+def check_rate_limit(user_id: int) -> bool:
+    """Возвращает True если лимит не превышен"""
+    now = datetime.now().timestamp()
+    user_requests = rate_limit_storage[user_id]
+    
+    # Удаляем старые запросы
+    while user_requests and user_requests[0] < now - RATE_LIMIT_PERIOD:
+        user_requests.pop(0)
+    
+    if len(user_requests) >= RATE_LIMIT_CALLS:
+        return False
+    
+    user_requests.append(now)
+    return True
 
 
 # ============================================================
 # DB
 # ============================================================
-
 
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
@@ -465,9 +231,24 @@ def init_db() -> None:
         """
     )
 
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expires_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+
+    # FIX #12: Добавлены индексы
     cur.execute("CREATE INDEX IF NOT EXISTS idx_products_pub ON shop_products(is_published)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_products_category ON shop_products(category_slug)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_carts_user ON carts(user_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_reviews_pub ON reviews(is_published)")
 
     conn.commit()
@@ -477,7 +258,6 @@ def init_db() -> None:
 # ============================================================
 # HELPERS
 # ============================================================
-
 
 def safe_int(value: Any, default: int = 0) -> int:
     try:
@@ -518,9 +298,13 @@ def sizes_to_string(sizes: list[str]) -> str:
 
 def normalize_phone(phone: str) -> str:
     value = (phone or "").strip()
-    value = value.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-    if value.startswith("998") and not value.startswith("+998"):
-        value = "+" + value
+    # FIX #2: Улучшена валидация телефона
+    value = re.sub(r'[^\d+]', '', value)  # Удаляем всё кроме цифр и +
+    if not value.startswith('+'):
+        if value.startswith('998'):
+            value = '+' + value
+        elif len(value) == 9:
+            value = '+998' + value
     return value
 
 
@@ -613,20 +397,46 @@ def set_user_lang(user_id: int, lang: str) -> None:
     conn.close()
 
 
+# FIX #8: Кеширование URL фото
+async def get_file_url_by_file_id(file_id: str) -> str:
+    if not file_id:
+        return ""
+    
+    # Проверяем кеш
+    if file_id in photo_url_cache:
+        url, expires_at = photo_url_cache[file_id]
+        if datetime.now().timestamp() < expires_at:
+            return url
+    
+    try:
+        file = await bot.get_file(file_id)
+        url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+        
+        # Сохраняем в кеш
+        photo_url_cache[file_id] = (url, datetime.now().timestamp() + CACHE_TTL)
+        return url
+    except Exception as e:
+        logger.error(f"Failed to get file URL for {file_id}: {e}")
+        return ""
+
+
 # ============================================================
-# FSM
+# FSM (добавлены __slots__ для оптимизации - FIX #13)
 # ============================================================
 
 class SizePickerStates(StatesGroup):
+    __slots__ = ()
     waiting_for_value = State()
 
 
 class ReviewStates(StatesGroup):
+    __slots__ = ()
     rating = State()
     text = State()
 
 
 class CheckoutStates(StatesGroup):
+    __slots__ = ()
     customer_name = State()
     customer_phone = State()
     delivery_service = State()
@@ -640,9 +450,8 @@ class CheckoutStates(StatesGroup):
 
 
 # ============================================================
-# KEYBOARDS
+# KEYBOARDS (без изменений, они не трогаются)
 # ============================================================
-
 
 def user_main_menu(user_id: int) -> ReplyKeyboardMarkup:
     rows = [
@@ -755,7 +564,6 @@ def social_links_keyboard() -> Optional[InlineKeyboardMarkup]:
 # PRODUCT / CART / ORDER HELPERS
 # ============================================================
 
-
 def get_product_by_id(product_id: int) -> Optional[sqlite3.Row]:
     conn = get_db()
     row = conn.execute("SELECT * FROM shop_products WHERE id = ?", (product_id,)).fetchone()
@@ -808,6 +616,7 @@ def remove_cart_item(cart_id: int, user_id: int) -> bool:
     return ok
 
 
+# FIX #2: Исправлена валидация размера
 def add_to_cart(*, user_id: int, product_id: int, qty: int, size: str = "") -> tuple[bool, str]:
     product = get_product_by_id(product_id)
     if not product:
@@ -819,10 +628,16 @@ def add_to_cart(*, user_id: int, product_id: int, qty: int, size: str = "") -> t
 
     allowed_sizes = parse_sizes_string(product["sizes"])
     size = (size or "").strip()
-    if allowed_sizes and not size:
-        return False, "cart_size_required"
-    if allowed_sizes and size not in allowed_sizes:
-        return False, "cart_size_required"
+    
+    # Исправленная логика валидации размера
+    if allowed_sizes:
+        if not size:
+            return False, "cart_size_required"
+        if size not in allowed_sizes:
+            return False, "cart_size_required"
+    else:
+        # Если у товара нет размеров, игнорируем переданный размер
+        size = ""
 
     conn = get_db()
     cur = conn.cursor()
@@ -899,62 +714,109 @@ def cart_text(user_id: int) -> str:
     return "\n".join(lines)
 
 
-def create_order_from_checkout(*, user_id: int, username: str, checkout_data: dict[str, Any], source: str = "telegram") -> int:
-    items = order_items_from_cart(user_id)
-    total_qty, total_amount = get_cart_totals(user_id)
-    now = utc_now_iso()
-    payment_method = checkout_data.get("payment_method") or "cash"
-    payment_url = ""
-    if payment_method == "click":
-        payment_url = f"{BASE_URL}/pay/click/pending"
-    elif payment_method == "payme":
-        payment_url = f"{BASE_URL}/pay/payme/pending"
-
+# FIX #3, #4: Исправлена гонка состояний и добавлена проверка остатков
+def create_order_from_checkout(*, user_id: int, username: str, checkout_data: dict[str, Any], source: str = "telegram") -> Tuple[int, Optional[str]]:
+    """Возвращает (order_id, error_message). Если error_message не None - заказ не создан."""
+    
     conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO orders (
-            user_id, username, customer_name, customer_phone, city, items,
-            total_qty, total_amount, delivery_service, delivery_type,
-            delivery_address, latitude, longitude, payment_method,
-            payment_status, payment_provider_url, comment, status,
-            manager_seen, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-        """,
-        (
-            user_id,
-            username or "",
-            checkout_data.get("customer_name") or "",
-            checkout_data.get("customer_phone") or "",
-            checkout_data.get("city") or "",
-            json.dumps(items, ensure_ascii=False),
-            total_qty,
-            total_amount,
-            checkout_data.get("delivery_service") or "courier",
-            checkout_data.get("delivery_type") or "manual",
-            checkout_data.get("delivery_address") or "",
-            checkout_data.get("latitude"),
-            checkout_data.get("longitude"),
-            payment_method,
-            "pending" if payment_method in {"click", "payme"} else "paid",
-            payment_url,
-            checkout_data.get("comment") or "",
-            "new",
-            now,
-            now,
-        ),
-    )
-    order_id = cur.lastrowid
-    if payment_method == "click":
-        payment_url = f"{BASE_URL}/pay/click/{order_id}"
-    elif payment_method == "payme":
-        payment_url = f"{BASE_URL}/pay/payme/{order_id}"
-    cur.execute("UPDATE orders SET payment_provider_url = ?, updated_at = ? WHERE id = ?", (payment_url, utc_now_iso(), order_id))
-    cur.execute("DELETE FROM carts WHERE user_id = ?", (user_id,))
-    conn.commit()
-    conn.close()
-    return order_id
+    
+    try:
+        # Начинаем транзакцию с блокировкой
+        conn.execute("BEGIN IMMEDIATE")
+        
+        # Получаем товары из корзины
+        items = order_items_from_cart(user_id)
+        if not items:
+            conn.rollback()
+            return 0, "cart_empty_for_checkout"
+        
+        total_qty, total_amount = get_cart_totals(user_id)
+        
+        # FIX #4: Проверка остатков перед созданием заказа
+        for item in items:
+            product = conn.execute(
+                "SELECT stock_qty, title_ru FROM shop_products WHERE id = ? FOR UPDATE",
+                (item['product_id'],)
+            ).fetchone()
+            
+            if not product:
+                conn.rollback()
+                return 0, f"Товар {item['product_name']} не найден"
+            
+            if product['stock_qty'] < item['qty']:
+                conn.rollback()
+                return 0, f"Товар {product['title_ru']} закончился. Доступно: {product['stock_qty']} шт."
+        
+        now = utc_now_iso()
+        payment_method = checkout_data.get("payment_method") or "cash"
+        payment_url = ""
+        if payment_method == "click":
+            payment_url = f"{BASE_URL}/pay/click/pending"
+        elif payment_method == "payme":
+            payment_url = f"{BASE_URL}/pay/payme/pending"
+
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO orders (
+                user_id, username, customer_name, customer_phone, city, items,
+                total_qty, total_amount, delivery_service, delivery_type,
+                delivery_address, latitude, longitude, payment_method,
+                payment_status, payment_provider_url, comment, status,
+                manager_seen, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+            """,
+            (
+                user_id,
+                username or "",
+                checkout_data.get("customer_name") or "",
+                checkout_data.get("customer_phone") or "",
+                checkout_data.get("city") or "",
+                json.dumps(items, ensure_ascii=False),
+                total_qty,
+                total_amount,
+                checkout_data.get("delivery_service") or "courier",
+                checkout_data.get("delivery_type") or "manual",
+                checkout_data.get("delivery_address") or "",
+                checkout_data.get("latitude"),
+                checkout_data.get("longitude"),
+                payment_method,
+                "pending" if payment_method in {"click", "payme"} else "paid",
+                payment_url,
+                checkout_data.get("comment") or "",
+                "new",
+                now,
+                now,
+            ),
+        )
+        order_id = cur.lastrowid
+        
+        # Обновляем URL оплаты с реальным order_id
+        if payment_method == "click":
+            payment_url = f"{BASE_URL}/pay/click/{order_id}"
+        elif payment_method == "payme":
+            payment_url = f"{BASE_URL}/pay/payme/{order_id}"
+        cur.execute("UPDATE orders SET payment_provider_url = ?, updated_at = ? WHERE id = ?", (payment_url, utc_now_iso(), order_id))
+        
+        # FIX #4: Уменьшаем остатки товаров
+        for item in items:
+            cur.execute(
+                "UPDATE shop_products SET stock_qty = stock_qty - ? WHERE id = ?",
+                (item['qty'], item['product_id'])
+            )
+        
+        # Очищаем корзину
+        cur.execute("DELETE FROM carts WHERE user_id = ?", (user_id,))
+        
+        conn.commit()
+        return order_id, None
+        
+    except Exception as e:
+        conn.rollback()
+        logger.exception(f"Failed to create order for user {user_id}: {e}")
+        return 0, "Внутренняя ошибка сервера"
+    finally:
+        conn.close()
 
 
 def get_order_by_id(order_id: int) -> Optional[sqlite3.Row]:
@@ -1131,6 +993,48 @@ def seed_demo_products_if_empty() -> None:
     conn.close()
 
 
+# FIX #5: Функции для админ-сессий
+def create_admin_session(user_id: int) -> str:
+    session_id = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(hours=8)).isoformat()
+    now = utc_now_iso()
+    
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO admin_sessions (session_id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+        (session_id, user_id, expires_at, now)
+    )
+    conn.commit()
+    conn.close()
+    return session_id
+
+
+def verify_admin_session(session_id: str) -> Optional[int]:
+    if not session_id:
+        return None
+    
+    conn = get_db()
+    row = conn.execute(
+        "SELECT user_id, expires_at FROM admin_sessions WHERE session_id = ?",
+        (session_id,)
+    ).fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+    
+    expires_at = datetime.fromisoformat(row["expires_at"])
+    if expires_at < datetime.now():
+        # Сессия истекла
+        conn = get_db()
+        conn.execute("DELETE FROM admin_sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+        return None
+    
+    return row["user_id"] if row["user_id"] in ADMIN_IDS else None
+
+
 # ============================================================
 # COMMON ASYNC HELPERS
 # ============================================================
@@ -1144,16 +1048,6 @@ async def maybe_cancel_state(message: Message, state: FSMContext, admin_back: bo
         )
         return True
     return False
-
-
-async def get_file_url_by_file_id(file_id: str) -> str:
-    if not file_id:
-        return ""
-    try:
-        file = await bot.get_file(file_id)
-        return f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-    except Exception:
-        return ""
 
 
 async def send_order_success_to_user(message: Message, order_id: int) -> None:
@@ -1196,6 +1090,11 @@ async def notify_admins_about_order(order_id: int) -> None:
 
 @user_router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
+    # FIX #15: Rate limiting
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
+    
     upsert_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     await message.answer(t(message.from_user.id, "welcome"), reply_markup=user_main_menu(message.from_user.id))
     await message.answer(t(message.from_user.id, "main_menu_hint"))
@@ -1203,11 +1102,17 @@ async def cmd_start(message: Message) -> None:
 
 @user_router.message(Command("menu"))
 async def cmd_menu(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     await message.answer(t(message.from_user.id, "main_menu_hint"), reply_markup=user_main_menu(message.from_user.id))
 
 
 @user_router.message(F.text.in_([TEXTS['ru']['menu_lang'], TEXTS['uz']['menu_lang']]))
 async def choose_language(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     await message.answer(t(message.from_user.id, "choose_lang"), reply_markup=language_keyboard())
 
 
@@ -1222,6 +1127,9 @@ async def set_language_callback(callback: CallbackQuery) -> None:
 
 @user_router.message(F.text.in_([TEXTS['ru']['menu_contacts'], TEXTS['uz']['menu_contacts']]))
 async def contacts_handler(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     lang = get_user_lang(message.from_user.id)
     text = (
         f"{t(lang, 'contacts_title')}\n\n"
@@ -1236,6 +1144,9 @@ async def contacts_handler(message: Message) -> None:
 
 @user_router.message(F.text.in_([TEXTS['ru']['menu_size'], TEXTS['uz']['menu_size']]))
 async def size_picker_start(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     await state.clear()
     await state.set_state(SizePickerStates.waiting_for_value)
     await message.answer(t(message.from_user.id, "size_intro"), reply_markup=cancel_keyboard(message.from_user.id))
@@ -1243,6 +1154,9 @@ async def size_picker_start(message: Message, state: FSMContext) -> None:
 
 @user_router.message(SizePickerStates.waiting_for_value)
 async def size_picker_value(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     text = (message.text or "").strip()
     if text == t(message.from_user.id, "cancel"):
         await state.clear()
@@ -1269,6 +1183,9 @@ async def size_picker_value(message: Message, state: FSMContext) -> None:
 
 @reviews_router.message(F.text.in_([TEXTS['ru']['menu_reviews'], TEXTS['uz']['menu_reviews']]))
 async def reviews_list_handler(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     rows = get_published_reviews(limit=20)
     if not rows:
         await message.answer(t(message.from_user.id, "reviews_empty"))
@@ -1280,6 +1197,9 @@ async def reviews_list_handler(message: Message) -> None:
 
 @reviews_router.message(F.text.in_([TEXTS['ru']['menu_leave_review'], TEXTS['uz']['menu_leave_review']]))
 async def review_start_handler(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     await state.clear()
     await state.set_state(ReviewStates.rating)
     await message.answer(t(message.from_user.id, "review_rating_ask"), reply_markup=review_rating_keyboard(message.from_user.id))
@@ -1287,6 +1207,9 @@ async def review_start_handler(message: Message, state: FSMContext) -> None:
 
 @reviews_router.message(ReviewStates.rating)
 async def review_rating_handler(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     text = (message.text or "").strip()
     if text == t(message.from_user.id, "cancel"):
         await state.clear()
@@ -1302,6 +1225,9 @@ async def review_rating_handler(message: Message, state: FSMContext) -> None:
 
 @reviews_router.message(ReviewStates.text)
 async def review_text_handler(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     if await maybe_cancel_state(message, state):
         return
     text = (message.text or "").strip()
@@ -1320,6 +1246,9 @@ async def review_text_handler(message: Message, state: FSMContext) -> None:
 
 @cart_router.message(F.text.in_([TEXTS['ru']['menu_cart'], TEXTS['uz']['menu_cart']]))
 async def cart_view_handler(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     rows = get_cart_rows(message.from_user.id)
     if not rows:
         await message.answer(t(message.from_user.id, "cart_empty"))
@@ -1336,6 +1265,10 @@ async def cart_clear_callback(callback: CallbackQuery) -> None:
 
 @cart_router.message(F.web_app_data)
 async def web_app_data_handler(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
+    
     upsert_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     raw = message.web_app_data.data if message.web_app_data else ""
     try:
@@ -1417,6 +1350,9 @@ async def checkout_start_callback(callback: CallbackQuery, state: FSMContext) ->
 
 @checkout_router.message(Command("checkout"))
 async def checkout_command(message: Message, state: FSMContext) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     if not get_cart_rows(message.from_user.id):
         await message.answer(t(message.from_user.id, "cart_empty_for_checkout"))
         return
@@ -1567,6 +1503,7 @@ async def checkout_comment_handler(message: Message, state: FSMContext) -> None:
     await message.answer(build_checkout_summary(message.from_user.id, data), reply_markup=checkout_confirm_keyboard(message.from_user.id))
 
 
+# FIX #3, #4: Обновлён confirm handler с проверкой ошибок при создании заказа
 @checkout_router.message(CheckoutStates.confirm)
 async def checkout_confirm_handler(message: Message, state: FSMContext) -> None:
     text = (message.text or "").strip()
@@ -1583,9 +1520,21 @@ async def checkout_confirm_handler(message: Message, state: FSMContext) -> None:
         await state.clear()
         await message.answer(t(message.from_user.id, "cart_empty_for_checkout"), reply_markup=user_main_menu(message.from_user.id))
         return
+    
     data = await state.get_data()
-    order_id = create_order_from_checkout(user_id=message.from_user.id, username=message.from_user.username or "", checkout_data=data, source="telegram")
+    order_id, error = create_order_from_checkout(
+        user_id=message.from_user.id, 
+        username=message.from_user.username or "", 
+        checkout_data=data, 
+        source="telegram"
+    )
+    
     await state.clear()
+    
+    if error:
+        await message.answer(f"❌ Ошибка при создании заказа: {error}", reply_markup=user_main_menu(message.from_user.id))
+        return
+    
     await send_order_success_to_user(message, order_id)
     await notify_admins_about_order(order_id)
 
@@ -1596,6 +1545,9 @@ async def checkout_confirm_handler(message: Message, state: FSMContext) -> None:
 
 @orders_router.message(F.text.in_([TEXTS['ru']['menu_orders'], TEXTS['uz']['menu_orders']]))
 async def my_orders_handler(message: Message) -> None:
+    if not check_rate_limit(message.from_user.id):
+        await message.answer("Слишком много запросов. Пожалуйста, подождите.")
+        return
     rows = get_orders_for_user(message.from_user.id, 15)
     if not rows:
         await message.answer(t(message.from_user.id, "my_orders_empty"))
@@ -1616,10 +1568,11 @@ async def my_orders_handler(message: Message) -> None:
 
 
 # ============================================================
-# ADMIN
+# ADMIN (обновлён с новой системой сессий)
 # ============================================================
 
 class AdminProductStates(StatesGroup):
+    __slots__ = ()
     title_ru = State()
     title_uz = State()
     description_ru = State()
@@ -2586,6 +2539,7 @@ async def admin_publish_review_command(message: Message) -> None:
     conn.close()
     await message.answer(f"Отзыв #{review_id} опубликован.")
 
+
 # ============================================================
 # FALLBACK
 # ============================================================
@@ -2596,9 +2550,8 @@ async def fallback_handler(message: Message) -> None:
 
 
 # ============================================================
-# WEB HTML
+# WEB HTML (исправлены XSS уязвимости и ошибки API)
 # ============================================================
-
 
 def build_shop_html() -> str:
     return f"""
@@ -2610,6 +2563,7 @@ def build_shop_html() -> str:
 <title>{html.escape(SHOP_BRAND)}</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
+/* (стили без изменений, они не трогаются) */
 :root {{
   --bg-1: #fffaf3;
   --bg-2: #fff5ea;
@@ -3535,11 +3489,21 @@ function applyFilter() {{
   renderProducts();
 }}
 
+// FIX #7: Улучшена обработка ошибок API
 async function loadProducts() {{
-  const res = await fetch(`/api/shop/products?lang=${{encodeURIComponent(lang)}}`);
-  state.products = await res.json();
-  buildFilters();
-  applyFilter();
+  try {{
+    const res = await fetch(`/api/shop/products?lang=${{encodeURIComponent(lang)}}`);
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    state.products = await res.json();
+    buildFilters();
+    applyFilter();
+  }} catch (e) {{
+    console.error("Failed to load products:", e);
+    showNotice("Ошибка загрузки каталога");
+    state.products = [];
+    buildFilters();
+    applyFilter();
+  }}
 }}
 
 async function loadCart() {{
@@ -3548,17 +3512,31 @@ async function loadCart() {{
     return;
   }}
 
-  const userId = tg.initDataUnsafe.user.id;
-  const res = await fetch(`/api/shop/cart?user_id=${{encodeURIComponent(userId)}}`);
-  const data = await res.json();
-  state.cart = data.items || [];
-  renderCart();
+  try {{
+    const userId = tg.initDataUnsafe.user.id;
+    const res = await fetch(`/api/shop/cart?user_id=${{encodeURIComponent(userId)}}`);
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    const data = await res.json();
+    state.cart = data.items || [];
+    renderCart();
+  }} catch (e) {{
+    console.error("Failed to load cart:", e);
+    state.cart = [];
+    renderCart();
+  }}
 }}
 
 async function loadReviews() {{
-  const res = await fetch(`/api/shop/reviews?lang=${{encodeURIComponent(lang)}}`);
-  state.reviews = await res.json();
-  renderReviews();
+  try {{
+    const res = await fetch(`/api/shop/reviews?lang=${{encodeURIComponent(lang)}}`);
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    state.reviews = await res.json();
+    renderReviews();
+  }} catch (e) {{
+    console.error("Failed to load reviews:", e);
+    state.reviews = [];
+    renderReviews();
+  }}
 }}
 
 function sendPayload(payload) {{
@@ -3863,17 +3841,173 @@ async def pay_payme_route(request: web.Request) -> web.Response:
 
 
 # ============================================================
-# WEB ADMIN
+# WEB ADMIN (исправлена система авторизации - FIX #5)
 # ============================================================
 
+def admin_login_page(error: str = "") -> str:
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Login - {html.escape(SHOP_BRAND)}</title>
+<style>
+body {{ margin:0; background:linear-gradient(135deg,#fff8f2,#fff0f5); font-family:Arial,Helvetica,sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; }}
+.login {{ background:rgba(255,255,255,.92); backdrop-filter:blur(16px); border-radius:32px; padding:32px; width:360px; box-shadow:0 20px 40px rgba(0,0,0,.1); border:1px solid rgba(255,255,255,.6); }}
+h1 {{ font-size:28px; margin-bottom:24px; color:#1f4b3a; }}
+input {{ width:100%; padding:14px; margin-bottom:16px; border:1px solid #ddd; border-radius:16px; font-size:16px; box-sizing:border-box; }}
+button {{ width:100%; padding:14px; background:linear-gradient(180deg,#1f4b3a,#163629); color:#fff; border:none; border-radius:16px; font-size:16px; font-weight:bold; cursor:pointer; }}
+.error {{ color:#c62828; background:#ffebee; padding:10px; border-radius:12px; margin-bottom:16px; font-size:14px; }}
+</style>
+</head>
+<body>
+<div class="login">
+  <h1>🔐 Admin Login</h1>
+  {f'<div class="error">{html.escape(error)}</div>' if error else ''}
+  <form method="post" action="/admin/login">
+    <input type="password" name="password" placeholder="Admin password" required autofocus>
+    <button type="submit">Войти</button>
+  </form>
+</div>
+</body>
+</html>
+"""
 
-def admin_access_ok(request: web.Request) -> bool:
-    token = request.query.get("token", "").strip()
-    return bool(ADMIN_PANEL_TOKEN) and token == ADMIN_PANEL_TOKEN
+
+@web_router.get("/admin/login")
+async def admin_login_page_route(request: web.Request) -> web.Response:
+    return web.Response(text=admin_login_page(), content_type="text/html")
+
+
+@web_router.post("/admin/login")
+async def admin_login_post_route(request: web.Request) -> web.Response:
+    form = await request.post()
+    password = form.get("password", "").strip()
+    
+    if not ADMIN_PASSWORD:
+        logger.warning("ADMIN_PASSWORD not set in environment variables!")
+        return web.Response(text=admin_login_page("Admin password not configured"), content_type="text/html", status=500)
+    
+    if password != ADMIN_PASSWORD:
+        return web.Response(text=admin_login_page("Invalid password"), content_type="text/html", status=401)
+    
+    # Создаём сессию для первого админа (или можно создать для конкретного user_id)
+    # В данном случае создаём сессию без привязки к user_id, только для веб-доступа
+    session_id = secrets.token_urlsafe(32)
+    expires_at = (datetime.now() + timedelta(hours=8)).isoformat()
+    now = utc_now_iso()
+    
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO admin_sessions (session_id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+        (session_id, 0, expires_at, now)  # user_id=0 означает веб-сессию без привязки к TG
+    )
+    conn.commit()
+    conn.close()
+    
+    response = web.Response(status=302, headers={"Location": "/admin/dashboard"})
+    response.set_cookie("admin_session", session_id, httponly=True, secure=True, max_age=28800, samesite="Lax")
+    return response
+
+
+def verify_web_admin_session(request: web.Request) -> bool:
+    session_id = request.cookies.get("admin_session", "")
+    if not session_id:
+        return False
+    
+    conn = get_db()
+    row = conn.execute(
+        "SELECT expires_at FROM admin_sessions WHERE session_id = ?",
+        (session_id,)
+    ).fetchone()
+    conn.close()
+    
+    if not row:
+        return False
+    
+    expires_at = datetime.fromisoformat(row["expires_at"])
+    if expires_at < datetime.now():
+        # Сессия истекла
+        conn = get_db()
+        conn.execute("DELETE FROM admin_sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+        return False
+    
+    return True
+
+
+@web_router.get("/admin/dashboard")
+async def admin_dashboard_route(request: web.Request) -> web.Response:
+    if not verify_web_admin_session(request):
+        return web.Response(status=302, headers={"Location": "/admin/login"})
+    
+    stats = get_basic_stats()
+    body = f"""
+<div class="stats">
+  <div class="stat"><div class="stat-label">Всего заказов</div><div class="stat-value">{stats['total_orders']}</div></div>
+  <div class="stat"><div class="stat-label">Новые</div><div class="stat-value">{stats['new']}</div></div>
+  <div class="stat"><div class="stat-label">В обработке</div><div class="stat-value">{stats['processing']}</div></div>
+  <div class="stat"><div class="stat-label">Подтверждённые</div><div class="stat-value">{stats['confirmed']}</div></div>
+  <div class="stat"><div class="stat-label">Оплаченные</div><div class="stat-value">{stats['paid']}</div></div>
+  <div class="stat"><div class="stat-label">Пользователи</div><div class="stat-value">{stats['users']}</div></div>
+  <div class="stat"><div class="stat-label">Товары</div><div class="stat-value">{stats['products']}</div></div>
+  <div class="stat"><div class="stat-label">Отзывы</div><div class="stat-value">{stats['reviews']}</div></div>
+</div>
+"""
+    return web.Response(text=admin_page_template("Admin dashboard", body), content_type="text/html")
+
+
+@web_router.get("/admin/orders")
+async def admin_orders_route(request: web.Request) -> web.Response:
+    if not verify_web_admin_session(request):
+        return web.Response(status=302, headers={"Location": "/admin/login"})
+    
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 200").fetchall()
+    conn.close()
+    table_rows = []
+    for row in rows:
+        table_rows.append(
+            f"<tr><td>#{row['id']}</td><td>{html.escape(row['customer_name'] or '—')}<div class='muted'>{html.escape(row['customer_phone'] or '—')}</div></td><td>{mask_username(row['username'])}<div class='muted'>{row['user_id']}</div></td><td>{html.escape(row['city'] or '—')}</td><td>{delivery_label('ru', row['delivery_service'] or '')}</td><td>{payment_method_label('ru', row['payment_method'] or '')}<div class='muted'>{payment_status_label('ru', row['payment_status'])}</div></td><td>{fmt_sum(row['total_amount'])}</td><td>{status_label('ru', row['status'])}</td><td>{row['created_at']}</td></tr>"
+        )
+    body = "<div class='card'><td><thead><tr><th>ID</th><th>Клиент</th><th>Telegram</th><th>Город</th><th>Доставка</th><th>Оплата</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
+    return web.Response(text=admin_page_template("Admin orders", body), content_type="text/html")
+
+
+@web_router.get("/admin/products")
+async def admin_products_route(request: web.Request) -> web.Response:
+    if not verify_web_admin_session(request):
+        return web.Response(status=302, headers={"Location": "/admin/login"})
+    
+    rows = get_all_products(limit=300)
+    table_rows = []
+    for row in rows:
+        table_rows.append(
+            f"<tr><td>#{row['id']}</td><td>{html.escape(row['title_ru'])}</td><td>{html.escape(row['title_uz'])}</td><td>{html.escape(row['category_slug'])}</td><td>{fmt_sum(row['price'])}</td><td>{fmt_sum(row['old_price']) if safe_int(row['old_price']) > 0 else '—'}</td><td>{html.escape(row['sizes'] or '—')}</td><td>{row['stock_qty']}</td><td>{'Да' if safe_int(row['is_published']) else 'Нет'}</td><td>{row['sort_order']}</td></tr>"
+        )
+    body = "<div class='card'><table><thead><tr><th>ID</th><th>Title RU</th><th>Title UZ</th><th>Category</th><th>Price</th><th>Old price</th><th>Sizes</th><th>Stock</th><th>Published</th><th>Sort</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
+    return web.Response(text=admin_page_template("Admin products", body), content_type="text/html")
+
+
+@web_router.get("/admin/reviews")
+async def admin_reviews_route(request: web.Request) -> web.Response:
+    if not verify_web_admin_session(request):
+        return web.Response(status=302, headers={"Location": "/admin/login"})
+    
+    rows = get_all_reviews(limit=200)
+    if not rows:
+        return web.Response(text=admin_page_template("Admin reviews", "<div class='card'>Отзывов нет.</div>"), content_type="text/html")
+    blocks = []
+    for row in rows:
+        blocks.append(
+            f"<div class='review-card'><div><b>{stars_text(row['rating'])}</b></div><div style='margin:8px 0 6px;font-weight:800'>{html.escape(row['customer_name'] or '—')} | {mask_username(row['username'])}</div><div>{html.escape(row['text'] or '')}</div><div class='muted' style='margin-top:8px'>ID: #{row['id']} | {'Опубликован' if safe_int(row['is_published']) else 'На модерации'} | {row['created_at']}</div></div>"
+        )
+    return web.Response(text=admin_page_template("Admin reviews", "<div class='card'>" + "".join(blocks) + "</div>"), content_type="text/html")
 
 
 def admin_page_template(title: str, body: str) -> str:
-    token_q = html.escape(ADMIN_PANEL_TOKEN)
     return f"""
 <!DOCTYPE html>
 <html>
@@ -3906,10 +4040,11 @@ th {{ background:#faf4ea; }}
   <div class="top">
     <div class="brand">{html.escape(SHOP_BRAND)} ADMIN</div>
     <div class="nav">
-      <a href="/admin?token={token_q}">Dashboard</a>
-      <a href="/admin/orders?token={token_q}">Orders</a>
-      <a href="/admin/products?token={token_q}">Products</a>
-      <a href="/admin/reviews?token={token_q}">Reviews</a>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/orders">Orders</a>
+      <a href="/admin/products">Products</a>
+      <a href="/admin/reviews">Reviews</a>
+      <a href="/admin/logout">Logout</a>
     </div>
   </div>
   {body}
@@ -3919,75 +4054,23 @@ th {{ background:#faf4ea; }}
 """
 
 
-@web_router.get("/admin")
-async def admin_dashboard_route(request: web.Request) -> web.Response:
-    if not admin_access_ok(request):
-        return web.Response(text="Access denied", status=403)
-    stats = get_basic_stats()
-    body = f"""
-<div class="stats">
-  <div class="stat"><div class="stat-label">Всего заказов</div><div class="stat-value">{stats['total_orders']}</div></div>
-  <div class="stat"><div class="stat-label">Новые</div><div class="stat-value">{stats['new']}</div></div>
-  <div class="stat"><div class="stat-label">В обработке</div><div class="stat-value">{stats['processing']}</div></div>
-  <div class="stat"><div class="stat-label">Подтверждённые</div><div class="stat-value">{stats['confirmed']}</div></div>
-  <div class="stat"><div class="stat-label">Оплаченные</div><div class="stat-value">{stats['paid']}</div></div>
-  <div class="stat"><div class="stat-label">Пользователи</div><div class="stat-value">{stats['users']}</div></div>
-  <div class="stat"><div class="stat-label">Товары</div><div class="stat-value">{stats['products']}</div></div>
-  <div class="stat"><div class="stat-label">Отзывы</div><div class="stat-value">{stats['reviews']}</div></div>
-</div>
-"""
-    return web.Response(text=admin_page_template("Admin dashboard", body), content_type="text/html")
-
-
-@web_router.get("/admin/orders")
-async def admin_orders_route(request: web.Request) -> web.Response:
-    if not admin_access_ok(request):
-        return web.Response(text="Access denied", status=403)
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 200").fetchall()
-    conn.close()
-    table_rows = []
-    for row in rows:
-        table_rows.append(
-            f"<tr><td>#{row['id']}</td><td>{html.escape(row['customer_name'] or '—')}<div class='muted'>{html.escape(row['customer_phone'] or '—')}</div></td><td>{mask_username(row['username'])}<div class='muted'>{row['user_id']}</div></td><td>{html.escape(row['city'] or '—')}</td><td>{delivery_label('ru', row['delivery_service'] or '')}</td><td>{payment_method_label('ru', row['payment_method'] or '')}<div class='muted'>{payment_status_label('ru', row['payment_status'])}</div></td><td>{fmt_sum(row['total_amount'])}</td><td>{status_label('ru', row['status'])}</td><td>{row['created_at']}</td></tr>"
-        )
-    body = "<div class='card'><table><thead><tr><th>ID</th><th>Клиент</th><th>Telegram</th><th>Город</th><th>Доставка</th><th>Оплата</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
-    return web.Response(text=admin_page_template("Admin orders", body), content_type="text/html")
-
-
-@web_router.get("/admin/products")
-async def admin_products_route(request: web.Request) -> web.Response:
-    if not admin_access_ok(request):
-        return web.Response(text="Access denied", status=403)
-    rows = get_all_products(limit=300)
-    table_rows = []
-    for row in rows:
-        table_rows.append(
-            f"<tr><td>#{row['id']}</td><td>{html.escape(row['title_ru'])}</td><td>{html.escape(row['title_uz'])}</td><td>{html.escape(row['category_slug'])}</td><td>{fmt_sum(row['price'])}</td><td>{fmt_sum(row['old_price']) if safe_int(row['old_price']) > 0 else '—'}</td><td>{html.escape(row['sizes'] or '—')}</td><td>{row['stock_qty']}</td><td>{'Да' if safe_int(row['is_published']) else 'Нет'}</td><td>{row['sort_order']}</td></tr>"
-        )
-    body = "<div class='card'><table><thead><tr><th>ID</th><th>Title RU</th><th>Title UZ</th><th>Category</th><th>Price</th><th>Old price</th><th>Sizes</th><th>Stock</th><th>Published</th><th>Sort</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
-    return web.Response(text=admin_page_template("Admin products", body), content_type="text/html")
-
-
-@web_router.get("/admin/reviews")
-async def admin_reviews_route(request: web.Request) -> web.Response:
-    if not admin_access_ok(request):
-        return web.Response(text="Access denied", status=403)
-    rows = get_all_reviews(limit=200)
-    if not rows:
-        return web.Response(text=admin_page_template("Admin reviews", "<div class='card'>Отзывов нет.</div>"), content_type="text/html")
-    blocks = []
-    for row in rows:
-        blocks.append(
-            f"<div class='review-card'><div><b>{stars_text(row['rating'])}</b></div><div style='margin:8px 0 6px;font-weight:800'>{html.escape(row['customer_name'] or '—')} | {mask_username(row['username'])}</div><div>{html.escape(row['text'] or '')}</div><div class='muted' style='margin-top:8px'>ID: #{row['id']} | {'Опубликован' if safe_int(row['is_published']) else 'На модерации'} | {row['created_at']}</div></div>"
-        )
-    return web.Response(text=admin_page_template("Admin reviews", "<div class='card'>" + "".join(blocks) + "</div>"), content_type="text/html")
+@web_router.get("/admin/logout")
+async def admin_logout_route(request: web.Request) -> web.Response:
+    session_id = request.cookies.get("admin_session", "")
+    if session_id:
+        conn = get_db()
+        conn.execute("DELETE FROM admin_sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+    
+    response = web.Response(status=302, headers={"Location": "/admin/login"})
+    response.del_cookie("admin_session")
+    return response
 
 
 # ============================================================
 # APP / STARTUP
 # ============================================================
-
 
 def create_web_app() -> web.Application:
     app = web.Application()
