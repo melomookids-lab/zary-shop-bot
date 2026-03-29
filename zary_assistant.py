@@ -7,6 +7,8 @@ import asyncio
 import logging
 import sqlite3
 import secrets
+import hmac
+import hashlib
 from pathlib import Path
 from typing import Any, Optional, Dict, List, Tuple
 from datetime import datetime, timezone, timedelta
@@ -77,7 +79,7 @@ PAYMENT_STATUSES = ("pending", "paid", "failed", "cancelled", "refunded")
 # Новые типы доставки
 DELIVERY_TYPES = ("courier", "yandex_courier", "b2b", "yandex_pvz", "post", "pickup")
 DELIVERY_REQUIRES_LOCATION = ("courier", "yandex_courier", "b2b")
-DELIVERY_REQUIRES_MANUAL_ADDRESS = ("yandex_pvz", "post", "pickup", "courier", "yandex_courier", "b2b")
+DELIVERY_REQUIRES_MANUAL_ADDRESS = ("yandex_pvz", "post", "pickup")
 
 SIZE_BY_AGE = {3: "98", 4: "104", 5: "110", 6: "116", 7: "122", 8: "128", 9: "134", 10: "140"}
 SIZE_BY_HEIGHT = {98: "98", 104: "104", 110: "110", 116: "116", 122: "122", 128: "128", 134: "134", 140: "140", 146: "146"}
@@ -683,6 +685,76 @@ async def get_file_url_by_file_id(file_id: str) -> str:
         return ""
 
 # ============================================================
+# WEBAPP SECURITY HELPERS
+# ============================================================
+
+def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
+    """Проверка подписи Telegram WebApp init_data"""
+    if not init_data:
+        return None
+    
+    try:
+        # Парсим данные
+        data_check_string = ""
+        hash_value = None
+        params = {}
+        
+        for pair in init_data.split("&"):
+            if "=" not in pair:
+                continue
+            key, value = pair.split("=", 1)
+            if key == "hash":
+                hash_value = value
+            else:
+                params[key] = value
+        
+        if not hash_value:
+            return None
+        
+        # Сортируем и создаем строку для проверки
+        data_check_arr = [f"{k}={v}" for k, v in sorted(params.items())]
+        data_check_string = "\n".join(data_check_arr)
+        
+        # Создаем секретный ключ из токена бота
+        secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        
+        # Проверяем подпись
+        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+        
+        if calculated_hash != hash_value:
+            return None
+        
+        # Возвращаем user_id и другие данные
+        user_data = params.get("user", "{}")
+        try:
+            user = json.loads(user_data)
+            return {
+                "user_id": safe_int(user.get("id")),
+                "username": user.get("username", ""),
+                "first_name": user.get("first_name", ""),
+                "last_name": user.get("last_name", ""),
+            }
+        except:
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error validating init_data: {e}")
+        return None
+
+def get_user_id_from_request(request: web.Request) -> int:
+    """Извлечение user_id из запроса с валидацией"""
+    # Сначала пробуем из init_data в заголовке
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if init_data:
+        validated = validate_telegram_init_data(init_data)
+        if validated and validated.get("user_id"):
+            return validated["user_id"]
+    
+    # Fallback на query param (только для совместимости, не рекомендуется)
+    user_id = safe_int(request.query.get("user_id"))
+    return user_id
+
+# ============================================================
 # FSM
 # ============================================================
 
@@ -700,10 +772,9 @@ class CheckoutStates(StatesGroup):
     customer_name = State()
     customer_phone = State()
     delivery_service = State()
-    delivery_type = State()
+    address_type = State()
     city = State()
     address = State()
-    location = State()
     payment_method = State()
     comment = State()
     confirm = State()
@@ -1054,7 +1125,7 @@ def create_order_from_checkout(*, user_id: int, username: str, checkout_data: di
                 json.dumps(items, ensure_ascii=False),
                 total_qty, total_amount,
                 checkout_data.get("delivery_service") or "courier",
-                checkout_data.get("delivery_type") or "manual",
+                checkout_data.get("address_type") or "manual",
                 checkout_data.get("delivery_address") or "",
                 checkout_data.get("latitude"),
                 checkout_data.get("longitude"),
@@ -1126,7 +1197,7 @@ def build_checkout_summary(user_id: int, data: dict[str, Any]) -> str:
         f"<b>{t(user_id, 'checkout_phone_label')}:</b> {html.escape(data.get('customer_phone') or '—')}",
         f"<b>{t(user_id, 'checkout_city_label')}:</b> {html.escape(data.get('city') or '—')}",
         f"<b>{t(user_id, 'checkout_delivery_label')}:</b> {delivery_label(user_id, data.get('delivery_service') or '')}",
-        f"<b>{t(user_id, 'checkout_address_type_label')}:</b> {address_type_label(user_id, data.get('delivery_type') or '')}",
+        f"<b>{t(user_id, 'checkout_address_type_label')}:</b> {address_type_label(user_id, data.get('address_type') or '')}",
         f"<b>{t(user_id, 'checkout_address_label')}:</b> {html.escape(data.get('delivery_address') or '—')}",
     ]
     if data.get("latitude") is not None and data.get("longitude") is not None:
@@ -1753,11 +1824,6 @@ async def web_app_data_handler(message: Message, state: FSMContext) -> None:
 
     action = (payload.get("action") or "").strip()
 
-    if action == "add_to_cart":
-        ok, key = add_to_cart(user_id=message.from_user.id, product_id=safe_int(payload.get("product_id")), qty=max(1, safe_int(payload.get("qty"), 1)), size=(payload.get("size") or "").strip())
-        await message.answer(t(message.from_user.id, key))
-        return
-
     if action == "buy_now":
         ok, key = add_to_cart(user_id=message.from_user.id, product_id=safe_int(payload.get("product_id")), qty=max(1, safe_int(payload.get("qty"), 1)), size=(payload.get("size") or "").strip())
         await message.answer(t(message.from_user.id, key))
@@ -1765,16 +1831,6 @@ async def web_app_data_handler(message: Message, state: FSMContext) -> None:
             await state.clear()
             await state.set_state(CheckoutStates.customer_name)
             await message.answer(f"{t(message.from_user.id, 'checkout_intro')}\n\n{t(message.from_user.id, 'checkout_name')}", reply_markup=cancel_keyboard(message.from_user.id))
-        return
-
-    if action == "remove_from_cart":
-        removed = remove_cart_item(safe_int(payload.get("cart_id")), message.from_user.id)
-        await message.answer(t(message.from_user.id, "cart_removed") if removed else t(message.from_user.id, "cart_item_not_found"))
-        return
-
-    if action == "clear_cart":
-        clear_cart_for_user(message.from_user.id)
-        await message.answer(t(message.from_user.id, "cart_cleared"))
         return
 
     if action == "checkout":
@@ -1790,7 +1846,7 @@ async def web_app_data_handler(message: Message, state: FSMContext) -> None:
     await message.answer(t(message.from_user.id, "cart_bad_payload"))
 
 # ============================================================
-# CHECKOUT HANDLERS
+# CHECKOUT HANDLERS (УПРОЩЕННЫЙ FSM)
 # ============================================================
 
 @checkout_router.callback_query(F.data == "cart:checkout")
@@ -1849,18 +1905,53 @@ async def checkout_delivery_handler(message: Message, state: FSMContext) -> None
         await message.answer(t(message.from_user.id, "checkout_invalid_choice"))
         return
     await state.update_data(delivery_service=delivery_service)
-    await state.set_state(CheckoutStates.delivery_type)
+    await state.set_state(CheckoutStates.address_type)
     await message.answer(t(message.from_user.id, "checkout_address_type"), reply_markup=checkout_address_type_keyboard(message.from_user.id, delivery_service))
 
-@checkout_router.message(CheckoutStates.delivery_type)
-async def checkout_delivery_type_handler(message: Message, state: FSMContext) -> None:
+@checkout_router.message(CheckoutStates.address_type)
+async def checkout_address_type_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state):
         return
-    delivery_type = address_type_from_label(message.from_user.id, message.text or "")
-    if not delivery_type:
+    address_type = address_type_from_label(message.from_user.id, message.text or "")
+    if not address_type:
         await message.answer(t(message.from_user.id, "checkout_invalid_choice"))
         return
-    await state.update_data(delivery_type=delivery_type)
+    await state.update_data(address_type=address_type)
+    
+    data = await state.get_data()
+    delivery_service = data.get("delivery_service")
+    
+    if address_type == "location" and delivery_service in DELIVERY_REQUIRES_LOCATION:
+        await state.set_state(CheckoutStates.address)
+        await message.answer(t(message.from_user.id, "checkout_location"), reply_markup=ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text=t(message.from_user.id, "address_location"), request_location=True)],
+                [KeyboardButton(text=t(message.from_user.id, "cancel"))]
+            ],
+            resize_keyboard=True
+        ))
+    else:
+        await state.set_state(CheckoutStates.city)
+        await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
+
+@checkout_router.message(CheckoutStates.address)
+async def checkout_address_handler(message: Message, state: FSMContext) -> None:
+    if message.location:
+        # Обработка локации
+        await state.update_data(latitude=message.location.latitude, longitude=message.location.longitude)
+        await state.set_state(CheckoutStates.city)
+        await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
+        return
+    
+    if await maybe_cancel_state(message, state):
+        return
+    
+    # Ручной ввод адреса
+    value = (message.text or "").strip()
+    if not value:
+        await message.answer(t(message.from_user.id, "checkout_address"))
+        return
+    await state.update_data(delivery_address=value)
     await state.set_state(CheckoutStates.city)
     await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
 
@@ -1873,36 +1964,6 @@ async def checkout_city_handler(message: Message, state: FSMContext) -> None:
         await message.answer(t(message.from_user.id, "checkout_city"))
         return
     await state.update_data(city=city)
-    data = await state.get_data()
-    delivery_service = data.get("delivery_service")
-    delivery_type = data.get("delivery_type")
-    if delivery_type == "location" and delivery_service in DELIVERY_REQUIRES_LOCATION:
-        await state.set_state(CheckoutStates.location)
-        await message.answer(t(message.from_user.id, "checkout_location"), reply_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=t(message.from_user.id, "address_location"), request_location=True)], [KeyboardButton(text=t(message.from_user.id, "cancel"))]], resize_keyboard=True))
-        return
-    await state.set_state(CheckoutStates.address)
-    await message.answer(t(message.from_user.id, "checkout_address"), reply_markup=cancel_keyboard(message.from_user.id))
-
-@checkout_router.message(CheckoutStates.location)
-async def checkout_location_handler(message: Message, state: FSMContext) -> None:
-    if message.text and await maybe_cancel_state(message, state):
-        return
-    if not message.location:
-        await message.answer(t(message.from_user.id, "checkout_need_location"))
-        return
-    await state.update_data(latitude=message.location.latitude, longitude=message.location.longitude, delivery_address="")
-    await state.set_state(CheckoutStates.payment_method)
-    await message.answer(t(message.from_user.id, "checkout_payment"), reply_markup=checkout_payment_keyboard(message.from_user.id))
-
-@checkout_router.message(CheckoutStates.address)
-async def checkout_address_handler(message: Message, state: FSMContext) -> None:
-    if await maybe_cancel_state(message, state):
-        return
-    value = (message.text or "").strip()
-    if not value:
-        await message.answer(t(message.from_user.id, "checkout_address"))
-        return
-    await state.update_data(delivery_address=value)
     await state.set_state(CheckoutStates.payment_method)
     await message.answer(t(message.from_user.id, "checkout_payment"), reply_markup=checkout_payment_keyboard(message.from_user.id))
 
@@ -2430,7 +2491,7 @@ async def fallback_handler(message: Message) -> None:
     await message.answer(t(message.from_user.id, "send_start_again"), reply_markup=user_main_menu(message.from_user.id))
 
 # ============================================================
-# WEB HTML
+# WEB HTML (ИСПРАВЛЕННЫЙ)
 # ============================================================
 
 def build_shop_html() -> str:
@@ -2651,9 +2712,9 @@ async function loadProducts() {{
   }} catch (e) {{ console.error("Failed to load products:", e); showNotice("Ошибка загрузки каталога"); state.products = []; buildFilters(); applyFilter(); }}
 }}
 async function loadCart() {{
-  if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) {{ renderCart(); return; }}
+  const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+  if (!userId) {{ renderCart(); return; }}
   try {{
-    const userId = tg.initDataUnsafe.user.id;
     const res = await fetch(`/api/shop/cart?user_id=${{encodeURIComponent(userId)}}`);
     if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
     const data = await res.json();
@@ -2670,6 +2731,48 @@ async function loadReviews() {{
   }} catch (e) {{ console.error("Failed to load reviews:", e); state.reviews = []; renderReviews(); }}
 }}
 function sendPayload(payload) {{ if (!tg) {{ showNotice(TXT.startCheckoutMsg); return; }} tg.sendData(JSON.stringify(payload)); }}
+async function apiAddToCart(product_id, qty, size) {{
+  const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+  if (!userId) {{ showNotice(TXT.startCheckoutMsg); return false; }}
+  try {{
+    const res = await fetch("/api/cart/add", {{
+      method: "POST",
+      headers: {{"Content-Type": "application/json", "X-Telegram-Init-Data": tg.initData || ""}},
+      body: JSON.stringify({{user_id: userId, product_id: product_id, qty: qty, size: size}})
+    }});
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    await loadCart();
+    return true;
+  }} catch (e) {{ console.error("Failed to add to cart:", e); showNotice("Ошибка добавления в корзину"); return false; }}
+}}
+async function apiRemoveFromCart(cart_id) {{
+  const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+  if (!userId) {{ showNotice(TXT.startCheckoutMsg); return false; }}
+  try {{
+    const res = await fetch("/api/cart/remove", {{
+      method: "POST",
+      headers: {{"Content-Type": "application/json", "X-Telegram-Init-Data": tg.initData || ""}},
+      body: JSON.stringify({{user_id: userId, cart_id: cart_id}})
+    }});
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    await loadCart();
+    return true;
+  }} catch (e) {{ console.error("Failed to remove from cart:", e); showNotice("Ошибка удаления из корзины"); return false; }}
+}}
+async function apiClearCart() {{
+  const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+  if (!userId) {{ showNotice(TXT.startCheckoutMsg); return false; }}
+  try {{
+    const res = await fetch("/api/cart/clear", {{
+      method: "POST",
+      headers: {{"Content-Type": "application/json", "X-Telegram-Init-Data": tg.initData || ""}},
+      body: JSON.stringify({{user_id: userId}})
+    }});
+    if (!res.ok) throw new Error(`HTTP ${{res.status}}`);
+    await loadCart();
+    return true;
+  }} catch (e) {{ console.error("Failed to clear cart:", e); showNotice("Ошибка очистки корзины"); return false; }}
+}}
 function updateCartUI() {{
   const list = document.getElementById("cartList");
   const empty = document.getElementById("cartEmpty");
@@ -2684,7 +2787,7 @@ function updateCartUI() {{
     const div = document.createElement("div");
     div.className = "cart-item";
     div.innerHTML = `<div class="cart-item-top"><div><div class="cart-name">${{esc(item.product_name)}}</div><div class="cart-meta">${{item.size ? esc(item.size) + " | " : ""}}${{item.qty}} × ${{fmtSum(item.price)}}</div></div><button class="cart-remove">×</button></div><div class="cart-meta">${{fmtSum(item.subtotal)}}</div>`;
-    div.querySelector(".cart-remove").onclick = () => {{ sendPayload({{ action: "remove_from_cart", cart_id: item.cart_id }}); showNotice(TXT.removed); setTimeout(loadCart, 500); }};
+    div.querySelector(".cart-remove").onclick = async () => {{ await apiRemoveFromCart(item.cart_id); showNotice(TXT.removed); }};
     list.appendChild(div);
   }});
   empty.style.display = state.cart.length ? "none" : "block";
@@ -2770,22 +2873,20 @@ function renderProducts() {{
         updatePriceForSize(activeSize);
       }};
     }});
-    card.querySelector(".buy-btn").onclick = () => {{
+    card.querySelector(".buy-btn").onclick = async () => {{
       if (sizes.length && !activeSize) {{ showNotice(TXT.chooseSize); return; }}
-      sendPayload({{ action: "add_to_cart", product_id: product.id, qty: qty, size: activeSize }});
-      showNotice(TXT.added);
-      setTimeout(loadCart, 500);
+      const ok = await apiAddToCart(product.id, qty, activeSize);
+      if (ok) showNotice(TXT.added);
     }};
     card.querySelector(".quick-btn").onclick = () => {{
       if (sizes.length && !activeSize) {{ showNotice(TXT.chooseSize); return; }}
       sendPayload({{ action: "buy_now", product_id: product.id, qty: qty, size: activeSize }});
       showNotice(TXT.added);
-      setTimeout(loadCart, 500);
     }};
     grid.appendChild(card);
   }});
 }}
-document.getElementById("clearBtn").onclick = () => {{ sendPayload({{ action: "clear_cart" }}); showNotice(TXT.cleared); setTimeout(loadCart, 500); }};
+document.getElementById("clearBtn").onclick = async () => {{ await apiClearCart(); showNotice(TXT.cleared); }};
 document.getElementById("checkoutBtn").onclick = () => {{ sendPayload({{ action: "checkout" }}); }};
 applyTexts();
 buildFlowers();
@@ -2799,7 +2900,7 @@ loadReviews();
 """
 
 # ============================================================
-# WEB ROUTES
+# WEB ROUTES (ИСПРАВЛЕННЫЕ С БЕЗОПАСНОСТЬЮ)
 # ============================================================
 
 @web_router.get("/shop")
@@ -2818,8 +2919,84 @@ async def api_shop_products(request: web.Request) -> web.Response:
 
 @web_router.get("/api/shop/cart")
 async def api_shop_cart(request: web.Request) -> web.Response:
-    user_id = safe_int(request.query.get("user_id"))
+    user_id = get_user_id_from_request(request)
+    if not user_id:
+        return web.json_response({"items": [], "total_qty": 0, "total_amount": 0})
     return web.json_response(cart_items_api(user_id))
+
+@web_router.post("/api/cart/add")
+async def api_cart_add(request: web.Request) -> web.Response:
+    """API для добавления в корзину из WebApp"""
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+    
+    # Проверка авторизации
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    validated = validate_telegram_init_data(init_data)
+    if not validated:
+        return web.json_response({"success": False, "error": "Unauthorized"}, status=401)
+    
+    user_id = validated.get("user_id")
+    product_id = safe_int(body.get("product_id"))
+    qty = max(1, safe_int(body.get("qty"), 1))
+    size = (body.get("size") or "").strip()
+    
+    if not product_id:
+        return web.json_response({"success": False, "error": "Missing product_id"}, status=400)
+    
+    ok, key = add_to_cart(user_id=user_id, product_id=product_id, qty=qty, size=size)
+    return web.json_response({"success": ok, "message": key})
+
+@web_router.post("/api/cart/remove")
+async def api_cart_remove(request: web.Request) -> web.Response:
+    """API для удаления из корзины из WebApp"""
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+    
+    # Проверка авторизации
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    validated = validate_telegram_init_data(init_data)
+    if not validated:
+        return web.json_response({"success": False, "error": "Unauthorized"}, status=401)
+    
+    user_id = validated.get("user_id")
+    cart_id = safe_int(body.get("cart_id"))
+    
+    if not cart_id:
+        return web.json_response({"success": False, "error": "Missing cart_id"}, status=400)
+    
+    # Проверяем, что cart_item принадлежит пользователю
+    conn = get_db()
+    row = conn.execute("SELECT id FROM carts WHERE id = ? AND user_id = ?", (cart_id, user_id)).fetchone()
+    conn.close()
+    
+    if not row:
+        return web.json_response({"success": False, "error": "Item not found"}, status=404)
+    
+    ok = remove_cart_item(cart_id, user_id)
+    return web.json_response({"success": ok})
+
+@web_router.post("/api/cart/clear")
+async def api_cart_clear(request: web.Request) -> web.Response:
+    """API для очистки корзины из WebApp"""
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
+    
+    # Проверка авторизации
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    validated = validate_telegram_init_data(init_data)
+    if not validated:
+        return web.json_response({"success": False, "error": "Unauthorized"}, status=401)
+    
+    user_id = validated.get("user_id")
+    clear_cart_for_user(user_id)
+    return web.json_response({"success": True})
 
 @web_router.get("/api/shop/reviews")
 async def api_shop_reviews(request: web.Request) -> web.Response:
@@ -2830,15 +3007,77 @@ async def api_shop_reviews(request: web.Request) -> web.Response:
 async def health_route(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok"})
 
+# ============================================================
+# PAYMENT ROUTES (БЕЗОПАСНЫЕ)
+# ============================================================
+
 @web_router.get("/pay/click/{order_id}")
 async def pay_click_route(request: web.Request) -> web.Response:
     order_id = safe_int(request.match_info.get("order_id"))
-    return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Click payment</h2><p>Order ID: <b>{order_id}</b></p><p>Сюда подключается интеграция Click.</p></body></html>", content_type="text/html")
+    order = get_order_by_id(order_id)
+    if not order:
+        return web.Response(text="<html><body><h1>Order not found</h1></body></html>", content_type="text/html", status=404)
+    
+    # Проверка, что заказ не оплачен и принадлежит пользователю
+    if order["payment_status"] == "paid":
+        return web.Response(text=f"<html><body><h1>Order #{order_id} already paid</h1></body></html>", content_type="text/html")
+    
+    # TODO: Интеграция с Click API
+    return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Click payment</h2><p>Order ID: <b>{order_id}</b></p><p>Amount: {fmt_sum(order['total_amount'])}</p><p>Сюда подключается интеграция Click.</p></body></html>", content_type="text/html")
 
 @web_router.get("/pay/payme/{order_id}")
 async def pay_payme_route(request: web.Request) -> web.Response:
     order_id = safe_int(request.match_info.get("order_id"))
-    return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Payme payment</h2><p>Order ID: <b>{order_id}</b></p><p>Сюда подключается интеграция Payme.</p></body></html>", content_type="text/html")
+    order = get_order_by_id(order_id)
+    if not order:
+        return web.Response(text="<html><body><h1>Order not found</h1></body></html>", content_type="text/html", status=404)
+    
+    # Проверка, что заказ не оплачен
+    if order["payment_status"] == "paid":
+        return web.Response(text=f"<html><body><h1>Order #{order_id} already paid</h1></body></html>", content_type="text/html")
+    
+    # TODO: Интеграция с Payme API
+    return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Payme payment</h2><p>Order ID: <b>{order_id}</b></p><p>Amount: {fmt_sum(order['total_amount'])}</p><p>Сюда подключается интеграция Payme.</p></body></html>", content_type="text/html")
+
+@web_router.post("/webhook/click")
+async def webhook_click_route(request: web.Request) -> web.Response:
+    """Webhook для Click - idempotent"""
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+    
+    # TODO: Реализовать проверку подписи Click
+    order_id = safe_int(body.get("order_id"))
+    payment_status = body.get("payment_status")
+    
+    if payment_status == "paid":
+        order = get_order_by_id(order_id)
+        if order and order["payment_status"] != "paid":
+            update_order_payment_status(order_id, "paid")
+            send_payment_status_notification(order["user_id"], order_id, "paid")
+    
+    return web.json_response({"status": "ok"})
+
+@web_router.post("/webhook/payme")
+async def webhook_payme_route(request: web.Request) -> web.Response:
+    """Webhook для Payme - idempotent"""
+    try:
+        body = await request.json()
+    except:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+    
+    # TODO: Реализовать проверку подписи Payme
+    order_id = safe_int(body.get("order_id"))
+    payment_status = body.get("payment_status")
+    
+    if payment_status == "paid":
+        order = get_order_by_id(order_id)
+        if order and order["payment_status"] != "paid":
+            update_order_payment_status(order_id, "paid")
+            send_payment_status_notification(order["user_id"], order_id, "paid")
+    
+    return web.json_response({"status": "ok"})
 
 # ============================================================
 # WEB ADMIN
