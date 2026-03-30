@@ -61,6 +61,9 @@ YOUTUBE_LINK = os.getenv("YOUTUBE_LINK", "").strip()
 MANAGER_PHONE = os.getenv("MANAGER_PHONE", "+998771202255").strip()
 MANAGER_TG = os.getenv("MANAGER_TG", "@manager").strip()
 
+# Адрес магазина
+SHOP_ADDRESS = os.getenv("SHOP_ADDRESS", "Узбекистан, город Фергана, ул. Янгиаср 164, индекс 150100").strip()
+
 CHANNEL_ID_RAW = os.getenv("CHANNEL_ID", "0").strip()
 CHANNEL_ID = int(CHANNEL_ID_RAW) if CHANNEL_ID_RAW.lstrip("-").isdigit() else 0
 
@@ -76,7 +79,6 @@ CATEGORY_SLUGS = ("new", "hits", "sale", "limited", "school", "casual")
 ORDER_STATUSES = ("new", "processing", "confirmed", "paid", "sent", "delivered", "cancelled")
 PAYMENT_STATUSES = ("pending", "paid", "failed", "cancelled", "refunded")
 
-# Новые типы доставки
 DELIVERY_TYPES = ("courier", "yandex_courier", "b2b", "yandex_pvz", "post", "pickup")
 DELIVERY_REQUIRES_LOCATION = ("courier", "yandex_courier", "b2b")
 DELIVERY_REQUIRES_MANUAL_ADDRESS = ("yandex_pvz", "post", "pickup")
@@ -97,7 +99,7 @@ photo_url_cache: Dict[str, Tuple[str, float]] = {}
 CACHE_TTL = 3600
 
 # ============================================================
-# ROUTERS (создаём сразу, чтобы избежать NameError)
+# ROUTERS
 # ============================================================
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -113,7 +115,7 @@ fallback_router = Router()
 web_router = web.RouteTableDef()
 
 # ============================================================
-# TEXTS (полный словарь, сокращён для читаемости, но все ключи есть)
+# TEXTS
 # ============================================================
 
 TEXTS: dict[str, dict[str, str]] = {
@@ -127,15 +129,16 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu_contacts": "📞 Контакты",
         "menu_lang": "🌐 Язык",
         "menu_admin": "🛠 Админ",
-        "welcome": f"Добро пожаловать в <b>{SHOP_BRAND}</b>\n\nПремиальный магазин одежды внутри Telegram.",
+        "welcome": f"Добро пожаловать в <b>{SHOP_BRAND}</b>\n\n✨ <b>Мы — бренд мирового уровня</b>\n\nПремиальный магазин одежды внутри Telegram. Каждая деталь создана с любовью к вам и заботой о качестве.",
         "main_menu_hint": "Выберите нужный раздел в меню ниже.",
+        "individual_order": "🌟 <b>Нет нужного размера?</b>\n\nЕсли в магазине нет подходящего размера или модели, вы можете связаться с менеджером и оформить индивидуальный заказ.\n\nМы подберем идеальную вещь специально для вас!",
         "choose_lang": "Выберите язык.",
         "lang_updated": "Язык обновлён.",
         "cart_empty": "Ваша корзина пуста.",
-        "cart_item_added": "Товар добавлен в корзину.",
-        "cart_same_item_merged": "Количество товара в корзине обновлено.",
-        "cart_removed": "Позиция удалена из корзины.",
-        "cart_cleared": "Корзина очищена.",
+        "cart_item_added": "✓ Товар добавлен в корзину.",
+        "cart_same_item_merged": "✓ Количество товара в корзине обновлено.",
+        "cart_removed": "🗑 Позиция удалена из корзины.",
+        "cart_cleared": "🧹 Корзина очищена.",
         "cart_bad_payload": "Не удалось обработать данные магазина.",
         "cart_item_not_found": "Товар не найден.",
         "cart_item_no_stock": "Товар временно недоступен.",
@@ -158,8 +161,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "my_orders_title": "📦 <b>Мои заказы</b>",
         "my_orders_empty": "У вас пока нет заказов.",
         "order_created_title": "✅ <b>Спасибо за покупку!</b>",
-        "order_created_text": "Мы рады, что вы с нами. Носите с удовольствием и с любовью от ZARY & CO.",
-        "order_links_text": "Чтобы не потерять нас, подпишитесь на наши каналы.",
+        "order_created_text": "Мы рады, что вы с нами. Скоро менеджер свяжется с вами для уточнения деталей заказа.\n\nНосите с удовольствием и с любовью от ZARY & CO.",
+        "order_links_text": "❤️ Чтобы не потерять нас, подпишитесь на наши каналы.",
         "checkout_intro": "Начинаем оформление заказа.",
         "checkout_name": "Введите имя получателя.",
         "checkout_phone": "Введите телефон в формате +998...",
@@ -222,6 +225,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "contacts_channel": "Telegram канал",
         "contacts_instagram": "Instagram",
         "contacts_youtube": "YouTube",
+        "contacts_address": "Адрес магазина",
+        "contacts_individual": "🌟 Индивидуальный заказ",
         "send_start_again": "Отправьте /start, чтобы открыть меню.",
         "not_admin": "Эта команда доступна только администратору.",
         "admin_title": "🛠 <b>Админ панель</b>",
@@ -242,9 +247,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "payment_status_failed": "Ошибка оплаты",
         "payment_status_cancelled": "Отменён",
         "payment_status_refunded": "Возврат",
-        "order_status_updated": "Статус вашего заказа #{order_id} изменён на: {status}",
-        "payment_status_updated": "Статус оплаты заказа #{order_id} изменён на: {status}",
-        "new_product_notification": "🆕 Новое поступление!\n\n{product_name}\nЦена: {price}\n\nЗаходите в магазин!",
+        "order_status_updated": "📦 Статус вашего заказа #{order_id} изменён на: {status}",
+        "payment_status_updated": "💳 Статус оплаты заказа #{order_id} изменён на: {status}",
+        "new_product_notification": "🆕 Новое поступление!\n\n{product_name}\n💰 Цена: {price}\n\n✨ Заходите в магазин!",
     },
     "uz": {
         "menu_shop": "🛍 Do'kon",
@@ -256,15 +261,16 @@ TEXTS: dict[str, dict[str, str]] = {
         "menu_contacts": "📞 Kontaktlar",
         "menu_lang": "🌐 Til",
         "menu_admin": "🛠 Admin",
-        "welcome": f"<b>{SHOP_BRAND}</b> ga xush kelibsiz.\n\nTelegram ichidagi premium kiyim do'koni.",
+        "welcome": f"<b>{SHOP_BRAND}</b> ga xush kelibsiz.\n\n✨ <b>Biz — jahon darajasidagi brend</b>\n\nTelegram ichidagi premium kiyim do'koni. Har bir detal sizga bo'lgan muhabbat va sifat g'amxo'rligi bilan yaratilgan.",
         "main_menu_hint": "Quyidagi menyudan kerakli bo'limni tanlang.",
+        "individual_order": "🌟 <b>Kerakli o'lcham yo'qmi?</b>\n\nAgar do'konda kerakli o'lcham yoki model bo'lmasa, siz menejer bilan bog'lanib, individual buyurtma berishingiz mumkin.\n\nBiz siz uchun eng mos kiyimni tanlaymiz!",
         "choose_lang": "Tilni tanlang.",
         "lang_updated": "Til yangilandi.",
         "cart_empty": "Savatchangiz bo'sh.",
-        "cart_item_added": "Mahsulot savatchaga qo'shildi.",
-        "cart_same_item_merged": "Savatchadagi mahsulot soni yangilandi.",
-        "cart_removed": "Pozitsiya savatchadan o'chirildi.",
-        "cart_cleared": "Savatcha tozalandi.",
+        "cart_item_added": "✓ Mahsulot savatchaga qo'shildi.",
+        "cart_same_item_merged": "✓ Savatchadagi mahsulot soni yangilandi.",
+        "cart_removed": "🗑 Pozitsiya savatchadan o'chirildi.",
+        "cart_cleared": "🧹 Savatcha tozalandi.",
         "cart_bad_payload": "Do'kon ma'lumotlarini qayta ishlab bo'lmadi.",
         "cart_item_not_found": "Mahsulot topilmadi.",
         "cart_item_no_stock": "Mahsulot vaqtincha mavjud emas.",
@@ -287,8 +293,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "my_orders_title": "📦 <b>Buyurtmalarim</b>",
         "my_orders_empty": "Sizda hozircha buyurtmalar yo'q.",
         "order_created_title": "✅ <b>Xaridingiz uchun rahmat!</b>",
-        "order_created_text": "Siz biz bilan ekaningizdan xursandmiz. Mahsulotni mamnuniyat bilan kiying.",
-        "order_links_text": "Bizni yo'qotib qo'ymaslik uchun kanallarimizga obuna bo'ling.",
+        "order_created_text": "Siz biz bilan ekaningizdan xursandmiz. Tez orada menejer siz bilan bog'lanib, buyurtma tafsilotlarini aniqlashtiradi.\n\nMahsulotni mamnuniyat bilan kiying.",
+        "order_links_text": "❤️ Bizni yo'qotib qo'ymaslik uchun kanallarimizga obuna bo'ling.",
         "checkout_intro": "Buyurtma rasmiylashtirishni boshlaymiz.",
         "checkout_name": "Qabul qiluvchi ismini kiriting.",
         "checkout_phone": "Telefon raqamini +998... ko'rinishida kiriting.",
@@ -298,7 +304,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "checkout_address": "Manzilni qo'lda kiriting.",
         "checkout_location": "Quyidagi tugma orqali lokatsiya yuboring.",
         "checkout_payment": "To'lov usulini tanlang.",
-        "checkout_comment": "Izoh yozing yoki «Propuстить» o'rniga tugmani bosing.",
+        "checkout_comment": "Izoh yozing yoki «O'tkazib yuborish» tugmasini bosing.",
         "checkout_invalid_phone": "Telefon noto'g'ri ko'rinadi. Misol: +998901234567",
         "checkout_invalid_choice": "Taklif qilingan variantlardan birini tanlang.",
         "checkout_need_location": "Aynan lokatsiya yuborilishi kerak.",
@@ -351,6 +357,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "contacts_channel": "Telegram kanal",
         "contacts_instagram": "Instagram",
         "contacts_youtube": "YouTube",
+        "contacts_address": "Do'kon manzili",
+        "contacts_individual": "🌟 Individual buyurtma",
         "send_start_again": "Menyuni ochish uchun /start yuboring.",
         "not_admin": "Bu bo'lim faqat administrator uchun.",
         "admin_title": "🛠 <b>Admin panel</b>",
@@ -371,11 +379,12 @@ TEXTS: dict[str, dict[str, str]] = {
         "payment_status_failed": "To'lov xatosi",
         "payment_status_cancelled": "Bekor qilingan",
         "payment_status_refunded": "Qaytarilgan",
-        "order_status_updated": "Buyurtma #{order_id} holati o'zgartirildi: {status}",
-        "payment_status_updated": "Buyurtma #{order_id} to'lov holati o'zgartirildi: {status}",
-        "new_product_notification": "🆕 Yangi mahsulot!\n\n{product_name}\nNarxi: {price}\n\nDo'konga kiring!",
+        "order_status_updated": "📦 #{order_id} buyurtma holati o'zgartirildi: {status}",
+        "payment_status_updated": "💳 #{order_id} buyurtma to'lov holati o'zgartirildi: {status}",
+        "new_product_notification": "🆕 Yangi mahsulot!\n\n{product_name}\n💰 Narxi: {price}\n\n✨ Do'konga kiring!",
     },
 }
+
 
 # ============================================================
 # RATE LIMITING
@@ -391,6 +400,7 @@ def check_rate_limit(user_id: int) -> bool:
     user_requests.append(now)
     return True
 
+
 # ============================================================
 # DB
 # ============================================================
@@ -400,12 +410,15 @@ def get_db() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
 
 def column_exists(cursor, table, column) -> bool:
     cursor.execute(f"PRAGMA table_info({table})")
     return any(col[1] == column for col in cursor.fetchall())
+
 
 def init_db() -> None:
     conn = get_db()
@@ -524,6 +537,7 @@ def init_db() -> None:
     conn.commit()
     conn.close()
 
+
 # ============================================================
 # HELPERS
 # ============================================================
@@ -534,8 +548,10 @@ def safe_int(value: Any, default: int = 0) -> int:
     except Exception:
         return default
 
+
 def ensure_lang(lang: str) -> str:
     return lang if lang in SUPPORTED_LANGS else DEFAULT_LANGUAGE
+
 
 def get_user_lang(user_id: int) -> str:
     conn = get_db()
@@ -543,20 +559,25 @@ def get_user_lang(user_id: int) -> str:
     conn.close()
     return row["lang"] if row and row["lang"] in SUPPORTED_LANGS else DEFAULT_LANGUAGE
 
+
 def t(user_id_or_lang: int | str, key: str) -> str:
     lang = get_user_lang(user_id_or_lang) if isinstance(user_id_or_lang, int) else ensure_lang(user_id_or_lang)
     return TEXTS.get(lang, TEXTS[DEFAULT_LANGUAGE]).get(key, key)
 
+
 def fmt_sum(value: Any) -> str:
     return f"{safe_int(value):,}".replace(",", " ") + " сум"
+
 
 def parse_sizes_string(sizes: str) -> list[str]:
     if not sizes:
         return []
     return [x.strip() for x in sizes.replace(";", ",").split(",") if x.strip()]
 
+
 def sizes_to_string(sizes: list[str]) -> str:
     return ", ".join(x.strip() for x in sizes if x.strip())
+
 
 def parse_size_prices(size_prices_json: str) -> dict:
     try:
@@ -564,11 +585,13 @@ def parse_size_prices(size_prices_json: str) -> dict:
     except:
         return {}
 
+
 def parse_size_old_prices(size_old_prices_json: str) -> dict:
     try:
         return json.loads(size_old_prices_json or "{}")
     except:
         return {}
+
 
 def get_price_for_size(product: sqlite3.Row, size: str) -> int:
     size_prices = parse_size_prices(product["size_prices"])
@@ -576,11 +599,13 @@ def get_price_for_size(product: sqlite3.Row, size: str) -> int:
         return safe_int(size_prices[size])
     return safe_int(product["price"])
 
+
 def get_old_price_for_size(product: sqlite3.Row, size: str) -> int:
     size_old_prices = parse_size_old_prices(product["size_old_prices"])
     if size and size in size_old_prices:
         return safe_int(size_old_prices[size])
     return safe_int(product["old_price"])
+
 
 def normalize_phone(phone: str) -> str:
     value = (phone or "").strip()
@@ -592,28 +617,36 @@ def normalize_phone(phone: str) -> str:
             value = '+998' + value
     return value
 
+
 def is_valid_phone(phone: str) -> bool:
     return bool(re.fullmatch(r"\+998\d{9}", normalize_phone(phone)))
+
 
 def product_title_by_lang(row: sqlite3.Row | dict[str, Any], lang: str) -> str:
     return row["title_uz"] if ensure_lang(lang) == "uz" else row["title_ru"]
 
+
 def product_desc_by_lang(row: sqlite3.Row | dict[str, Any], lang: str) -> str:
     return row["description_uz"] if ensure_lang(lang) == "uz" else row["description_ru"]
+
 
 def stars_text(value: int) -> str:
     n = max(1, min(5, safe_int(value, 5)))
     return "⭐" * n
 
+
 def status_label(lang_or_user: int | str, status: str) -> str:
     return t(lang_or_user, f"status_{status}")
+
 
 def payment_status_label(lang_or_user: int | str, status: str) -> str:
     return t(lang_or_user, f"payment_status_{status}")
 
+
 def payment_method_label(lang_or_user: int | str, method: str) -> str:
     mapping = {"click": "payment_click", "payme": "payment_payme", "cash": "payment_cash"}
     return t(lang_or_user, mapping.get(method, "payment_cash"))
+
 
 def delivery_label(lang_or_user: int | str, service: str) -> str:
     mapping = {
@@ -626,17 +659,21 @@ def delivery_label(lang_or_user: int | str, service: str) -> str:
     }
     return t(lang_or_user, mapping.get(service, "delivery_courier"))
 
+
 def address_type_label(lang_or_user: int | str, value: str) -> str:
     mapping = {"location": "address_location", "manual": "address_manual"}
     return t(lang_or_user, mapping.get(value, "address_manual"))
 
+
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
+
 
 def mask_username(username: Optional[str]) -> str:
     if not username:
         return "—"
     return "@" + username.strip().lstrip("@")
+
 
 def upsert_user(user_id: int, username: Optional[str], full_name: Optional[str]) -> None:
     now = utc_now_iso()
@@ -657,6 +694,7 @@ def upsert_user(user_id: int, username: Optional[str], full_name: Optional[str])
     conn.commit()
     conn.close()
 
+
 def set_user_lang(user_id: int, lang: str) -> None:
     lang = ensure_lang(lang)
     now = utc_now_iso()
@@ -668,6 +706,7 @@ def set_user_lang(user_id: int, lang: str) -> None:
         conn.execute("INSERT INTO users (user_id, username, full_name, lang, created_at, updated_at) VALUES (?, '', '', ?, ?, ?)", (user_id, lang, now, now))
     conn.commit()
     conn.close()
+
 
 async def get_file_url_by_file_id(file_id: str) -> str:
     if not file_id:
@@ -684,6 +723,7 @@ async def get_file_url_by_file_id(file_id: str) -> str:
     except Exception:
         return ""
 
+
 # ============================================================
 # WEBAPP SECURITY HELPERS
 # ============================================================
@@ -694,10 +734,8 @@ def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
         return None
     
     try:
-        # Парсим данные
-        data_check_string = ""
-        hash_value = None
         params = {}
+        hash_value = None
         
         for pair in init_data.split("&"):
             if "=" not in pair:
@@ -711,20 +749,15 @@ def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
         if not hash_value:
             return None
         
-        # Сортируем и создаем строку для проверки
         data_check_arr = [f"{k}={v}" for k, v in sorted(params.items())]
         data_check_string = "\n".join(data_check_arr)
         
-        # Создаем секретный ключ из токена бота
         secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        
-        # Проверяем подпись
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         
         if calculated_hash != hash_value:
             return None
         
-        # Возвращаем user_id и другие данные
         user_data = params.get("user", "{}")
         try:
             user = json.loads(user_data)
@@ -741,34 +774,32 @@ def validate_telegram_init_data(init_data: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Error validating init_data: {e}")
         return None
 
+
 def get_user_id_from_request(request: web.Request) -> int:
-    """Извлечение user_id из запроса с валидацией"""
-    # Сначала пробуем из init_data в заголовке
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     if init_data:
         validated = validate_telegram_init_data(init_data)
         if validated and validated.get("user_id"):
             return validated["user_id"]
     
-    # Fallback на query param (только для совместимости, не рекомендуется)
     user_id = safe_int(request.query.get("user_id"))
     return user_id
+
 
 # ============================================================
 # FSM
 # ============================================================
 
 class SizePickerStates(StatesGroup):
-    __slots__ = ()
     waiting_for_value = State()
 
+
 class ReviewStates(StatesGroup):
-    __slots__ = ()
     rating = State()
     text = State()
 
+
 class CheckoutStates(StatesGroup):
-    __slots__ = ()
     customer_name = State()
     customer_phone = State()
     delivery_service = State()
@@ -779,8 +810,8 @@ class CheckoutStates(StatesGroup):
     comment = State()
     confirm = State()
 
+
 class AdminProductStates(StatesGroup):
-    __slots__ = ()
     title_ru = State()
     title_uz = State()
     description_ru = State()
@@ -795,6 +826,7 @@ class AdminProductStates(StatesGroup):
     photo = State()
     is_published = State()
     sort_order = State()
+
 
 # ============================================================
 # KEYBOARDS
@@ -815,11 +847,13 @@ def user_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         rows.append([KeyboardButton(text=t(user_id, "menu_admin"))])
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
+
 def cart_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(user_id, "cart_checkout"), callback_data="cart:checkout")],
         [InlineKeyboardButton(text=t(user_id, "cart_clear"), callback_data="cart:clear")],
     ])
+
 
 def language_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -827,8 +861,10 @@ def language_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="O'zbekcha", callback_data="lang:set:uz")],
     ])
 
+
 def cancel_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=t(user_id, "cancel"))]], resize_keyboard=True)
+
 
 def review_rating_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
@@ -836,6 +872,7 @@ def review_rating_keyboard(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text="4"), KeyboardButton(text="5")],
         [KeyboardButton(text=t(user_id, "cancel"))],
     ], resize_keyboard=True)
+
 
 def checkout_delivery_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
@@ -847,6 +884,7 @@ def checkout_delivery_keyboard(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text=t(user_id, "delivery_pickup"))],
         [KeyboardButton(text=t(user_id, "cancel"))],
     ], resize_keyboard=True)
+
 
 def checkout_address_type_keyboard(user_id: int, delivery_service: str) -> ReplyKeyboardMarkup:
     if delivery_service in DELIVERY_REQUIRES_LOCATION:
@@ -861,6 +899,7 @@ def checkout_address_type_keyboard(user_id: int, delivery_service: str) -> Reply
             [KeyboardButton(text=t(user_id, "cancel"))],
         ], resize_keyboard=True)
 
+
 def checkout_payment_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text=t(user_id, "payment_click"))],
@@ -869,16 +908,19 @@ def checkout_payment_keyboard(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text=t(user_id, "cancel"))],
     ], resize_keyboard=True)
 
+
 def checkout_comment_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text=t(user_id, "skip"))],
         [KeyboardButton(text=t(user_id, "cancel"))],
     ], resize_keyboard=True)
 
+
 def checkout_confirm_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
         [KeyboardButton(text=t(user_id, "checkout_confirm_yes")), KeyboardButton(text=t(user_id, "checkout_confirm_no"))],
     ], resize_keyboard=True)
+
 
 def admin_main_menu(user_id: int) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=[
@@ -888,6 +930,7 @@ def admin_main_menu(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text=t(user_id, "admin_reviews"))],
         [KeyboardButton(text=t(user_id, "admin_back_to_user"))],
     ], resize_keyboard=True)
+
 
 def admin_category_keyboard(user_id: int) -> ReplyKeyboardMarkup:
     labels = {
@@ -912,6 +955,7 @@ def admin_category_keyboard(user_id: int) -> ReplyKeyboardMarkup:
         [KeyboardButton(text=t(user_id, "cancel"))],
     ], resize_keyboard=True)
 
+
 def social_links_keyboard() -> Optional[InlineKeyboardMarkup]:
     rows = []
     row = []
@@ -925,6 +969,7 @@ def social_links_keyboard() -> Optional[InlineKeyboardMarkup]:
         rows.append(row)
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
+
 def category_slug_from_admin_label(text: str, user_id: int) -> Optional[str]:
     value = (text or "").strip()
     labels_ru = {"🆕 Новинки": "new", "🔥 Хиты": "hits", "💸 Скидки": "sale", "✨ Лимит": "limited", "🎓 Школа": "school", "👕 Повседневное": "casual"}
@@ -937,6 +982,7 @@ def category_slug_from_admin_label(text: str, user_id: int) -> Optional[str]:
         return value
     return None
 
+
 def category_label_human(slug: str, user_id: int) -> str:
     labels_ru = {"new": "🆕 Новинки", "hits": "🔥 Хиты", "sale": "💸 Скидки", "limited": "✨ Лимит", "school": "🎓 Школа", "casual": "👕 Повседневное"}
     labels_uz = {"new": "🆕 Yangi", "hits": "🔥 Xitlar", "sale": "💸 Chegirma", "limited": "✨ Limit", "school": "🎓 Maktab", "casual": "👕 Kundalik"}
@@ -944,6 +990,7 @@ def category_label_human(slug: str, user_id: int) -> str:
     if lang == "uz":
         return labels_uz.get(slug, slug)
     return labels_ru.get(slug, slug)
+
 
 # ============================================================
 # PRODUCT / CART / ORDER HELPERS
@@ -955,11 +1002,13 @@ def get_product_by_id(product_id: int) -> Optional[sqlite3.Row]:
     conn.close()
     return row
 
+
 def get_published_products() -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM shop_products WHERE is_published = 1 ORDER BY sort_order ASC, id DESC").fetchall()
     conn.close()
     return rows
+
 
 def get_all_products(limit: int = 200) -> list[sqlite3.Row]:
     conn = get_db()
@@ -967,11 +1016,13 @@ def get_all_products(limit: int = 200) -> list[sqlite3.Row]:
     conn.close()
     return rows
 
+
 def get_cart_rows(user_id: int) -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM carts WHERE user_id = ? ORDER BY id ASC", (user_id,)).fetchall()
     conn.close()
     return rows
+
 
 def get_cart_totals(user_id: int) -> tuple[int, int]:
     rows = get_cart_rows(user_id)
@@ -979,11 +1030,13 @@ def get_cart_totals(user_id: int) -> tuple[int, int]:
     amount = sum(safe_int(r["qty"]) * safe_int(r["price"]) for r in rows)
     return qty, amount
 
+
 def clear_cart_for_user(user_id: int) -> None:
     conn = get_db()
     conn.execute("DELETE FROM carts WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
+
 
 def remove_cart_item(cart_id: int, user_id: int) -> bool:
     conn = get_db()
@@ -993,6 +1046,7 @@ def remove_cart_item(cart_id: int, user_id: int) -> bool:
     conn.commit()
     conn.close()
     return ok
+
 
 def add_to_cart(*, user_id: int, product_id: int, qty: int, size: str = "") -> tuple[bool, str]:
     product = get_product_by_id(product_id)
@@ -1040,6 +1094,7 @@ def add_to_cart(*, user_id: int, product_id: int, qty: int, size: str = "") -> t
     conn.close()
     return True, "cart_item_added"
 
+
 def order_items_from_cart(user_id: int) -> list[dict[str, Any]]:
     items = []
     for row in get_cart_rows(user_id):
@@ -1057,10 +1112,12 @@ def order_items_from_cart(user_id: int) -> list[dict[str, Any]]:
         })
     return items
 
+
 def cart_items_api(user_id: int) -> dict[str, Any]:
     items = order_items_from_cart(user_id)
     qty, amount = get_cart_totals(user_id)
     return {"items": items, "total_qty": qty, "total_amount": amount}
+
 
 def cart_text(user_id: int) -> str:
     rows = get_cart_rows(user_id)
@@ -1074,6 +1131,7 @@ def cart_text(user_id: int) -> str:
         lines.append(f"{i}. <b>{html.escape(row['product_name'])}</b>{size_part}\n   {fmt_sum(row['price'])} × {row['qty']} = <b>{fmt_sum(subtotal)}</b>")
     lines += ["", f"{t(user_id, 'cart_total_qty')}: <b>{total_qty}</b>", f"{t(user_id, 'cart_total_amount')}: <b>{fmt_sum(total_amount)}</b>"]
     return "\n".join(lines)
+
 
 def create_order_from_checkout(*, user_id: int, username: str, checkout_data: dict[str, Any], source: str = "telegram") -> tuple[int, Optional[str]]:
     conn = get_db()
@@ -1158,17 +1216,20 @@ def create_order_from_checkout(*, user_id: int, username: str, checkout_data: di
     finally:
         conn.close()
 
+
 def get_order_by_id(order_id: int) -> Optional[sqlite3.Row]:
     conn = get_db()
     row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     conn.close()
     return row
 
+
 def get_orders_for_user(user_id: int, limit: int = 20) -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT ?", (user_id, limit)).fetchall()
     conn.close()
     return rows
+
 
 def render_order_items(items_json: str) -> str:
     try:
@@ -1187,6 +1248,7 @@ def render_order_items(items_json: str) -> str:
         size_part = f" | {size}" if size else ""
         lines.append(f"{i}. {html.escape(name)}{size_part} — {qty} × {fmt_sum(price)} = {fmt_sum(subtotal)}")
     return "\n".join(lines)
+
 
 def build_checkout_summary(user_id: int, data: dict[str, Any]) -> str:
     items = order_items_from_cart(user_id)
@@ -1216,17 +1278,20 @@ def build_checkout_summary(user_id: int, data: dict[str, Any]) -> str:
     lines += ["", f"<b>{t(user_id, 'cart_total_qty')}:</b> {total_qty}", f"<b>{t(user_id, 'checkout_total_label')}:</b> {fmt_sum(total_amount)}", "", t(user_id, "checkout_confirm_hint")]
     return "\n".join(lines)
 
+
 def get_published_reviews(limit: int = 20) -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM reviews WHERE is_published = 1 ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return rows
 
+
 def get_all_reviews(limit: int = 50) -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM reviews ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return rows
+
 
 def create_review(*, user_id: int, username: str, customer_name: str, rating: int, text: str) -> int:
     conn = get_db()
@@ -1240,6 +1305,7 @@ def create_review(*, user_id: int, username: str, customer_name: str, rating: in
     conn.commit()
     conn.close()
     return review_id
+
 
 def get_basic_stats() -> dict[str, int]:
     conn = get_db()
@@ -1263,8 +1329,10 @@ def get_basic_stats() -> dict[str, int]:
     conn.close()
     return stats
 
+
 def request_lang(request: web.Request) -> str:
     return ensure_lang(request.query.get("lang", DEFAULT_LANGUAGE))
+
 
 def product_row_to_api_dict(row: sqlite3.Row, lang: str, photo_url: str = "") -> dict[str, Any]:
     sizes_list = parse_sizes_string(row["sizes"] or "")
@@ -1286,6 +1354,7 @@ def product_row_to_api_dict(row: sqlite3.Row, lang: str, photo_url: str = "") ->
         "stock_qty": safe_int(row["stock_qty"]),
     }
 
+
 def product_card_text(row: sqlite3.Row) -> str:
     return (
         f"🧷 <b>Товар #{row['id']}</b>\n\n"
@@ -1298,6 +1367,7 @@ def product_card_text(row: sqlite3.Row) -> str:
         f"<b>Остаток:</b> {row['stock_qty']}\n"
         f"<b>Опубликован:</b> {'Да' if safe_int(row['is_published']) else 'Нет'}"
     )
+
 
 def admin_product_card_text(row: sqlite3.Row, user_id: int) -> str:
     return (
@@ -1314,6 +1384,7 @@ def admin_product_card_text(row: sqlite3.Row, user_id: int) -> str:
         f"<b>Сортировка:</b> {row['sort_order']}"
     )
 
+
 def admin_edit_intro_text(row: sqlite3.Row) -> str:
     return (
         f"✏️ <b>Редактирование товара #{row['id']}</b>\n\n"
@@ -1326,6 +1397,7 @@ def admin_edit_intro_text(row: sqlite3.Row) -> str:
         f"<b>Публикация:</b> {'Да' if safe_int(row['is_published']) else 'Нет'}\n\n"
         f"Сейчас начнётся полное редактирование товара по всем полям."
     )
+
 
 def build_product_payload_from_state(data: dict[str, Any]) -> dict[str, Any]:
     sizes_raw = data.get("sizes", "").strip()
@@ -1346,6 +1418,7 @@ def build_product_payload_from_state(data: dict[str, Any]) -> dict[str, Any]:
         "is_published": 1 if safe_int(data.get("is_published"), 0) else 0,
         "sort_order": safe_int(data.get("sort_order"), 100),
     }
+
 
 def create_product_record(data: dict[str, Any]) -> int:
     conn = get_db()
@@ -1382,6 +1455,7 @@ def create_product_record(data: dict[str, Any]) -> int:
     conn.close()
     return product_id
 
+
 def update_product_record(product_id: int, data: dict[str, Any]) -> bool:
     conn = get_db()
     cur = conn.cursor()
@@ -1417,6 +1491,7 @@ def update_product_record(product_id: int, data: dict[str, Any]) -> bool:
     conn.close()
     return ok
 
+
 def delete_product_record(product_id: int) -> bool:
     conn = get_db()
     cur = conn.cursor()
@@ -1425,6 +1500,7 @@ def delete_product_record(product_id: int) -> bool:
     conn.commit()
     conn.close()
     return ok
+
 
 def set_product_published(product_id: int, value: int) -> bool:
     conn = get_db()
@@ -1435,11 +1511,13 @@ def set_product_published(product_id: int, value: int) -> bool:
     conn.close()
     return ok
 
+
 def get_recent_orders(limit: int = 20) -> list[sqlite3.Row]:
     conn = get_db()
     rows = conn.execute("SELECT * FROM orders ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
     conn.close()
     return rows
+
 
 def update_order_status(order_id: int, new_status: str) -> bool:
     if new_status not in ORDER_STATUSES:
@@ -1452,6 +1530,7 @@ def update_order_status(order_id: int, new_status: str) -> bool:
     conn.close()
     return ok
 
+
 def update_order_payment_status(order_id: int, new_payment_status: str) -> bool:
     if new_payment_status not in PAYMENT_STATUSES:
         return False
@@ -1463,21 +1542,25 @@ def update_order_payment_status(order_id: int, new_payment_status: str) -> bool:
     conn.close()
     return ok
 
+
 def get_users_with_orders() -> list[int]:
     conn = get_db()
     rows = conn.execute("SELECT DISTINCT user_id FROM orders WHERE user_id IS NOT NULL").fetchall()
     conn.close()
     return [row["user_id"] for row in rows]
 
+
 def send_order_status_notification(user_id: int, order_id: int, status: str) -> None:
     lang = get_user_lang(user_id)
     text = t(lang, "order_status_updated").format(order_id=order_id, status=status_label(lang, status))
     asyncio.create_task(bot.send_message(user_id, text))
 
+
 def send_payment_status_notification(user_id: int, order_id: int, payment_status: str) -> None:
     lang = get_user_lang(user_id)
     text = t(lang, "payment_status_updated").format(order_id=order_id, status=payment_status_label(lang, payment_status))
     asyncio.create_task(bot.send_message(user_id, text))
+
 
 async def notify_old_customers_about_new_product(product_id: int, title_ru: str, price: int) -> None:
     user_ids = get_users_with_orders()
@@ -1489,6 +1572,7 @@ async def notify_old_customers_about_new_product(product_id: int, title_ru: str,
             await asyncio.sleep(0.05)
         except Exception as e:
             logger.error(f"Failed to notify user {user_id}: {e}")
+
 
 def admin_order_text(row: sqlite3.Row) -> str:
     address = row["delivery_address"] or ""
@@ -1524,8 +1608,10 @@ def admin_order_text(row: sqlite3.Row) -> str:
         lines += ["", f"<b>Ссылка на оплату:</b> {html.escape(row['payment_provider_url'])}"]
     return "\n".join(lines)
 
+
 def admin_products_toolbar_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить новый товар", callback_data="admin_product:add")]])
+
 
 def admin_product_row_keyboard(product_id: int, is_published: int) -> InlineKeyboardMarkup:
     pub_text = "🙈 Скрыть" if safe_int(is_published) else "👁 Опубликовать"
@@ -1536,11 +1622,13 @@ def admin_product_row_keyboard(product_id: int, is_published: int) -> InlineKeyb
         [InlineKeyboardButton(text=pub_text, callback_data=f"admin_product:{pub_action}:{product_id}")],
     ])
 
+
 def admin_delete_confirm_keyboard(product_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Да, удалить", callback_data=f"admin_product:delete_yes:{product_id}"),
          InlineKeyboardButton(text="❌ Нет", callback_data=f"admin_product:delete_no:{product_id}")],
     ])
+
 
 def admin_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -1558,6 +1646,7 @@ def admin_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="💳 Оплата: cancelled", callback_data=f"admin_order:payment:{order_id}:cancelled")],
     ])
 
+
 def create_admin_session(user_id: int) -> str:
     session_id = secrets.token_urlsafe(32)
     expires_at = (datetime.now() + timedelta(hours=8)).isoformat()
@@ -1567,6 +1656,7 @@ def create_admin_session(user_id: int) -> str:
     conn.commit()
     conn.close()
     return session_id
+
 
 def verify_admin_session(session_id: str) -> Optional[int]:
     if not session_id:
@@ -1585,11 +1675,13 @@ def verify_admin_session(session_id: str) -> Optional[int]:
         return None
     return row["user_id"] if row["user_id"] in ADMIN_IDS else None
 
+
 def normalize_optional_admin_text(value: str) -> str:
     value = (value or "").strip()
     if value in {"-", "—"}:
         return ""
     return value
+
 
 def parse_admin_publish_value(value: str) -> Optional[int]:
     v = (value or "").strip().lower()
@@ -1598,6 +1690,7 @@ def parse_admin_publish_value(value: str) -> Optional[int]:
     if v in {"0", "нет", "no", "n", "скрыть", "hide", "yo'q", "yoq"}:
         return 0
     return None
+
 
 def delivery_service_from_label(user_id: int, text: str) -> Optional[str]:
     mapping = {
@@ -1610,13 +1703,16 @@ def delivery_service_from_label(user_id: int, text: str) -> Optional[str]:
     }
     return mapping.get((text or "").strip())
 
+
 def address_type_from_label(user_id: int, text: str) -> Optional[str]:
     mapping = {t(user_id, "address_location"): "location", t(user_id, "address_manual"): "manual"}
     return mapping.get((text or "").strip())
 
+
 def payment_method_from_label(user_id: int, text: str) -> Optional[str]:
     mapping = {t(user_id, "payment_click"): "click", t(user_id, "payment_payme"): "payme", t(user_id, "payment_cash"): "cash"}
     return mapping.get((text or "").strip())
+
 
 async def maybe_cancel_state(message: Message, state: FSMContext, admin_back: bool = False) -> bool:
     if (message.text or "").strip() == t(message.from_user.id, "cancel"):
@@ -1625,12 +1721,14 @@ async def maybe_cancel_state(message: Message, state: FSMContext, admin_back: bo
         return True
     return False
 
+
 async def send_order_success_to_user(message: Message, order_id: int) -> None:
     text = f"{t(message.from_user.id, 'order_created_title')}\n\n{t(message.from_user.id, 'order_created_text')}\n\n<b>{t(message.from_user.id, 'order_number')}:</b> #{order_id}\n\n{t(message.from_user.id, 'order_links_text')}"
     await message.answer(text, reply_markup=user_main_menu(message.from_user.id))
     kb = social_links_keyboard()
     if kb:
-        await message.answer("Наши ссылки:", reply_markup=kb)
+        await message.answer("🔗 Наши ссылки:", reply_markup=kb)
+
 
 async def notify_admins_about_order(order_id: int) -> None:
     order = get_order_by_id(order_id)
@@ -1652,6 +1750,7 @@ async def notify_admins_about_order(order_id: int) -> None:
         except Exception:
             logger.exception("Failed to notify admin %s about order", admin_id)
 
+
 # ============================================================
 # USER HANDLERS
 # ============================================================
@@ -1665,6 +1764,7 @@ async def cmd_start(message: Message) -> None:
     await message.answer(t(message.from_user.id, "welcome"), reply_markup=user_main_menu(message.from_user.id))
     await message.answer(t(message.from_user.id, "main_menu_hint"))
 
+
 @user_router.message(Command("menu"))
 async def cmd_menu(message: Message) -> None:
     if not check_rate_limit(message.from_user.id):
@@ -1672,12 +1772,14 @@ async def cmd_menu(message: Message) -> None:
         return
     await message.answer(t(message.from_user.id, "main_menu_hint"), reply_markup=user_main_menu(message.from_user.id))
 
+
 @user_router.message(F.text.in_([TEXTS['ru']['menu_lang'], TEXTS['uz']['menu_lang']]))
 async def choose_language(message: Message) -> None:
     if not check_rate_limit(message.from_user.id):
         await message.answer("Слишком много запросов. Пожалуйста, подождите.")
         return
     await message.answer(t(message.from_user.id, "choose_lang"), reply_markup=language_keyboard())
+
 
 @user_router.callback_query(F.data.startswith("lang:set:"))
 async def set_language_callback(callback: CallbackQuery) -> None:
@@ -1687,14 +1789,27 @@ async def set_language_callback(callback: CallbackQuery) -> None:
         await callback.message.answer(t(lang, "lang_updated"), reply_markup=user_main_menu(callback.from_user.id))
     await callback.answer()
 
+
 @user_router.message(F.text.in_([TEXTS['ru']['menu_contacts'], TEXTS['uz']['menu_contacts']]))
 async def contacts_handler(message: Message) -> None:
     if not check_rate_limit(message.from_user.id):
         await message.answer("Слишком много запросов. Пожалуйста, подождите.")
         return
     lang = get_user_lang(message.from_user.id)
-    text = f"{t(lang, 'contacts_title')}\n\n<b>{t(lang, 'contacts_phone')}:</b> {html.escape(MANAGER_PHONE)}\n<b>{t(lang, 'contacts_manager')}:</b> {html.escape(MANAGER_TG)}\n<b>{t(lang, 'contacts_channel')}:</b> {html.escape(CHANNEL_LINK or '—')}\n<b>{t(lang, 'contacts_instagram')}:</b> {html.escape(INSTAGRAM_LINK or '—')}\n<b>{t(lang, 'contacts_youtube')}:</b> {html.escape(YOUTUBE_LINK or '—')}"
+    
+    # Добавляем информацию об индивидуальном заказе
+    individual_text = t(lang, "individual_order")
+    await message.answer(individual_text)
+    
+    text = f"{t(lang, 'contacts_title')}\n\n" \
+           f"<b>{t(lang, 'contacts_phone')}:</b> {html.escape(MANAGER_PHONE)}\n" \
+           f"<b>{t(lang, 'contacts_manager')}:</b> {html.escape(MANAGER_TG)}\n" \
+           f"<b>{t(lang, 'contacts_channel')}:</b> {html.escape(CHANNEL_LINK or '—')}\n" \
+           f"<b>{t(lang, 'contacts_instagram')}:</b> {html.escape(INSTAGRAM_LINK or '—')}\n" \
+           f"<b>{t(lang, 'contacts_address')}:</b> {html.escape(SHOP_ADDRESS)}\n" \
+           f"<b>{t(lang, 'contacts_youtube')}:</b> {html.escape(YOUTUBE_LINK or '—')}"
     await message.answer(text, reply_markup=social_links_keyboard())
+
 
 @user_router.message(F.text.in_([TEXTS['ru']['menu_size'], TEXTS['uz']['menu_size']]))
 async def size_picker_start(message: Message, state: FSMContext) -> None:
@@ -1704,6 +1819,7 @@ async def size_picker_start(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(SizePickerStates.waiting_for_value)
     await message.answer(t(message.from_user.id, "size_intro"), reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @user_router.message(SizePickerStates.waiting_for_value)
 async def size_picker_value(message: Message, state: FSMContext) -> None:
@@ -1729,6 +1845,7 @@ async def size_picker_value(message: Message, state: FSMContext) -> None:
         return
     await message.answer(t(message.from_user.id, "size_not_found"))
 
+
 # ============================================================
 # REVIEWS HANDLERS
 # ============================================================
@@ -1746,6 +1863,7 @@ async def reviews_list_handler(message: Message) -> None:
     for row in rows:
         await message.answer(f"{stars_text(row['rating'])}\n<b>{html.escape(row['customer_name'] or 'Клиент')}</b>\n{html.escape(row['text'])}")
 
+
 @reviews_router.message(F.text.in_([TEXTS['ru']['menu_leave_review'], TEXTS['uz']['menu_leave_review']]))
 async def review_start_handler(message: Message, state: FSMContext) -> None:
     if not check_rate_limit(message.from_user.id):
@@ -1754,6 +1872,7 @@ async def review_start_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(ReviewStates.rating)
     await message.answer(t(message.from_user.id, "review_rating_ask"), reply_markup=review_rating_keyboard(message.from_user.id))
+
 
 @reviews_router.message(ReviewStates.rating)
 async def review_rating_handler(message: Message, state: FSMContext) -> None:
@@ -1772,6 +1891,7 @@ async def review_rating_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(ReviewStates.text)
     await message.answer(t(message.from_user.id, "review_text_ask"), reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @reviews_router.message(ReviewStates.text)
 async def review_text_handler(message: Message, state: FSMContext) -> None:
     if not check_rate_limit(message.from_user.id):
@@ -1788,6 +1908,7 @@ async def review_text_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(t(message.from_user.id, "review_sent"), reply_markup=user_main_menu(message.from_user.id))
 
+
 # ============================================================
 # CART / WEBAPP HANDLERS
 # ============================================================
@@ -1803,11 +1924,13 @@ async def cart_view_handler(message: Message) -> None:
         return
     await message.answer(cart_text(message.from_user.id), reply_markup=cart_keyboard(message.from_user.id))
 
+
 @cart_router.callback_query(F.data == "cart:clear")
 async def cart_clear_callback(callback: CallbackQuery) -> None:
     clear_cart_for_user(callback.from_user.id)
     await callback.message.answer(t(callback.from_user.id, "cart_cleared"), reply_markup=user_main_menu(callback.from_user.id))
     await callback.answer()
+
 
 @cart_router.message(F.web_app_data)
 async def web_app_data_handler(message: Message, state: FSMContext) -> None:
@@ -1845,8 +1968,9 @@ async def web_app_data_handler(message: Message, state: FSMContext) -> None:
 
     await message.answer(t(message.from_user.id, "cart_bad_payload"))
 
+
 # ============================================================
-# CHECKOUT HANDLERS (УПРОЩЕННЫЙ FSM)
+# CHECKOUT HANDLERS
 # ============================================================
 
 @checkout_router.callback_query(F.data == "cart:checkout")
@@ -1860,6 +1984,7 @@ async def checkout_start_callback(callback: CallbackQuery, state: FSMContext) ->
     await callback.message.answer(f"{t(callback.from_user.id, 'checkout_intro')}\n\n{t(callback.from_user.id, 'checkout_name')}", reply_markup=cancel_keyboard(callback.from_user.id))
     await callback.answer()
 
+
 @checkout_router.message(Command("checkout"))
 async def checkout_command(message: Message, state: FSMContext) -> None:
     if not check_rate_limit(message.from_user.id):
@@ -1871,6 +1996,7 @@ async def checkout_command(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(CheckoutStates.customer_name)
     await message.answer(f"{t(message.from_user.id, 'checkout_intro')}\n\n{t(message.from_user.id, 'checkout_name')}", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @checkout_router.message(CheckoutStates.customer_name)
 async def checkout_name_handler(message: Message, state: FSMContext) -> None:
@@ -1884,6 +2010,7 @@ async def checkout_name_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(CheckoutStates.customer_phone)
     await message.answer(t(message.from_user.id, "checkout_phone"))
 
+
 @checkout_router.message(CheckoutStates.customer_phone)
 async def checkout_phone_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state):
@@ -1896,6 +2023,7 @@ async def checkout_phone_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(CheckoutStates.delivery_service)
     await message.answer(t(message.from_user.id, "checkout_delivery"), reply_markup=checkout_delivery_keyboard(message.from_user.id))
 
+
 @checkout_router.message(CheckoutStates.delivery_service)
 async def checkout_delivery_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state):
@@ -1907,6 +2035,7 @@ async def checkout_delivery_handler(message: Message, state: FSMContext) -> None
     await state.update_data(delivery_service=delivery_service)
     await state.set_state(CheckoutStates.address_type)
     await message.answer(t(message.from_user.id, "checkout_address_type"), reply_markup=checkout_address_type_keyboard(message.from_user.id, delivery_service))
+
 
 @checkout_router.message(CheckoutStates.address_type)
 async def checkout_address_type_handler(message: Message, state: FSMContext) -> None:
@@ -1934,10 +2063,11 @@ async def checkout_address_type_handler(message: Message, state: FSMContext) -> 
         await state.set_state(CheckoutStates.city)
         await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @checkout_router.message(CheckoutStates.address)
 async def checkout_address_handler(message: Message, state: FSMContext) -> None:
     if message.location:
-        # Обработка локации
+        # Получили локацию - сразу переходим к городу
         await state.update_data(latitude=message.location.latitude, longitude=message.location.longitude)
         await state.set_state(CheckoutStates.city)
         await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
@@ -1955,6 +2085,7 @@ async def checkout_address_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(CheckoutStates.city)
     await message.answer(t(message.from_user.id, "checkout_city"), reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @checkout_router.message(CheckoutStates.city)
 async def checkout_city_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state):
@@ -1966,6 +2097,7 @@ async def checkout_city_handler(message: Message, state: FSMContext) -> None:
     await state.update_data(city=city)
     await state.set_state(CheckoutStates.payment_method)
     await message.answer(t(message.from_user.id, "checkout_payment"), reply_markup=checkout_payment_keyboard(message.from_user.id))
+
 
 @checkout_router.message(CheckoutStates.payment_method)
 async def checkout_payment_handler(message: Message, state: FSMContext) -> None:
@@ -1979,6 +2111,7 @@ async def checkout_payment_handler(message: Message, state: FSMContext) -> None:
     await state.set_state(CheckoutStates.comment)
     await message.answer(t(message.from_user.id, "checkout_comment"), reply_markup=checkout_comment_keyboard(message.from_user.id))
 
+
 @checkout_router.message(CheckoutStates.comment)
 async def checkout_comment_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state):
@@ -1990,6 +2123,7 @@ async def checkout_comment_handler(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     await state.set_state(CheckoutStates.confirm)
     await message.answer(build_checkout_summary(message.from_user.id, data), reply_markup=checkout_confirm_keyboard(message.from_user.id))
+
 
 @checkout_router.message(CheckoutStates.confirm)
 async def checkout_confirm_handler(message: Message, state: FSMContext) -> None:
@@ -2015,6 +2149,7 @@ async def checkout_confirm_handler(message: Message, state: FSMContext) -> None:
         return
     await send_order_success_to_user(message, order_id)
     await notify_admins_about_order(order_id)
+
 
 # ============================================================
 # ORDERS HANDLERS
@@ -2043,6 +2178,7 @@ async def my_orders_handler(message: Message) -> None:
         )
         await message.answer(text)
 
+
 # ============================================================
 # ADMIN HANDLERS
 # ============================================================
@@ -2054,10 +2190,12 @@ async def admin_menu_open(message: Message) -> None:
         return
     await message.answer(t(message.from_user.id, "admin_title"), reply_markup=admin_main_menu(message.from_user.id))
 
+
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_back_to_user'], TEXTS['uz']['admin_back_to_user']]))
 async def admin_back_to_user_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer(t(message.from_user.id, "main_menu_hint"), reply_markup=user_main_menu(message.from_user.id))
+
 
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_stats'], TEXTS['uz']['admin_stats']]))
 async def admin_stats_handler(message: Message) -> None:
@@ -2080,6 +2218,7 @@ async def admin_stats_handler(message: Message) -> None:
         f"Cancelled: <b>{stats['cancelled']}</b>"
     )
 
+
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_orders'], TEXTS['uz']['admin_orders']]))
 async def admin_orders_handler(message: Message) -> None:
     if not is_admin(message.from_user.id):
@@ -2096,6 +2235,7 @@ async def admin_orders_handler(message: Message) -> None:
     await message.answer("📋 <b>Управление заказами</b>\n\nПод каждым заказом есть кнопки для смены статуса заказа и оплаты.")
     for row in rows:
         await message.answer(admin_order_text(row), reply_markup=admin_order_actions_keyboard(row["id"]))
+
 
 @admin_router.callback_query(F.data.startswith("admin_order:status:"))
 async def admin_order_status_callback(callback: CallbackQuery) -> None:
@@ -2122,6 +2262,7 @@ async def admin_order_status_callback(callback: CallbackQuery) -> None:
     await callback.message.answer(admin_order_text(order), reply_markup=admin_order_actions_keyboard(order_id))
     await callback.answer("Статус заказа обновлён")
 
+
 @admin_router.callback_query(F.data.startswith("admin_order:payment:"))
 async def admin_order_payment_callback(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
@@ -2147,6 +2288,7 @@ async def admin_order_payment_callback(callback: CallbackQuery) -> None:
     await callback.message.answer(admin_order_text(order), reply_markup=admin_order_actions_keyboard(order_id))
     await callback.answer("Статус оплаты обновлён")
 
+
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_products'], TEXTS['uz']['admin_products']]))
 async def admin_products_handler(message: Message, state: FSMContext) -> None:
     if not is_admin(message.from_user.id):
@@ -2166,6 +2308,7 @@ async def admin_products_handler(message: Message, state: FSMContext) -> None:
     for row in rows:
         await message.answer(admin_product_card_text(row, message.from_user.id), reply_markup=admin_product_row_keyboard(row["id"], row["is_published"]))
 
+
 @admin_router.callback_query(F.data == "admin_product:add")
 async def admin_product_add_start(callback: CallbackQuery, state: FSMContext) -> None:
     if not is_admin(callback.from_user.id):
@@ -2176,6 +2319,7 @@ async def admin_product_add_start(callback: CallbackQuery, state: FSMContext) ->
     await state.set_state(AdminProductStates.title_ru)
     await callback.message.answer("➕ <b>Создание нового товара</b>\n\n1/14. Введите название товара на русском.", reply_markup=cancel_keyboard(callback.from_user.id))
     await callback.answer()
+
 
 @admin_router.callback_query(F.data.startswith("admin_product:edit:"))
 async def admin_product_edit_start(callback: CallbackQuery, state: FSMContext) -> None:
@@ -2194,6 +2338,7 @@ async def admin_product_edit_start(callback: CallbackQuery, state: FSMContext) -
     await callback.message.answer("1/14. Введите новое название товара на русском.", reply_markup=cancel_keyboard(callback.from_user.id))
     await callback.answer()
 
+
 @admin_router.callback_query(F.data.startswith("admin_product:delete_yes:"))
 async def admin_product_delete_yes(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
@@ -2204,10 +2349,12 @@ async def admin_product_delete_yes(callback: CallbackQuery) -> None:
     await callback.message.answer(f"🗑 Товар #{product_id} удалён." if ok else "Товар не найден.")
     await callback.answer()
 
+
 @admin_router.callback_query(F.data.startswith("admin_product:delete_no:"))
 async def admin_product_delete_no(callback: CallbackQuery) -> None:
     await callback.message.answer("Удаление отменено.")
     await callback.answer()
+
 
 @admin_router.callback_query(F.data.startswith("admin_product:delete:"))
 async def admin_product_delete_ask(callback: CallbackQuery) -> None:
@@ -2222,6 +2369,7 @@ async def admin_product_delete_ask(callback: CallbackQuery) -> None:
     await callback.message.answer(f"Ты точно хочешь удалить товар #{product_id}?\n\n<b>{html.escape(row['title_ru'])}</b>", reply_markup=admin_delete_confirm_keyboard(product_id))
     await callback.answer()
 
+
 @admin_router.callback_query(F.data.startswith("admin_product:publish:"))
 async def admin_product_publish(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
@@ -2232,6 +2380,7 @@ async def admin_product_publish(callback: CallbackQuery) -> None:
     await callback.message.answer(f"Товар #{product_id} опубликован." if ok else "Товар не найден.")
     await callback.answer()
 
+
 @admin_router.callback_query(F.data.startswith("admin_product:unpublish:"))
 async def admin_product_unpublish(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
@@ -2241,6 +2390,7 @@ async def admin_product_unpublish(callback: CallbackQuery) -> None:
     ok = set_product_published(product_id, 0)
     await callback.message.answer(f"Товар #{product_id} скрыт." if ok else "Товар не найден.")
     await callback.answer()
+
 
 @admin_router.message(AdminProductStates.title_ru)
 async def admin_product_title_ru_handler(message: Message, state: FSMContext) -> None:
@@ -2254,6 +2404,7 @@ async def admin_product_title_ru_handler(message: Message, state: FSMContext) ->
     await state.set_state(AdminProductStates.title_uz)
     await message.answer("2/14. Введите название товара на узбекском.", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.title_uz)
 async def admin_product_title_uz_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2266,6 +2417,7 @@ async def admin_product_title_uz_handler(message: Message, state: FSMContext) ->
     await state.set_state(AdminProductStates.description_ru)
     await message.answer("3/14. Введите описание на русском или отправьте '-' если пусто.", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.description_ru)
 async def admin_product_description_ru_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2274,6 +2426,7 @@ async def admin_product_description_ru_handler(message: Message, state: FSMConte
     await state.update_data(description_ru=value)
     await state.set_state(AdminProductStates.description_uz)
     await message.answer("4/14. Введите описание на узбекском или отправьте '-' если пусто.", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.description_uz)
 async def admin_product_description_uz_handler(message: Message, state: FSMContext) -> None:
@@ -2284,6 +2437,7 @@ async def admin_product_description_uz_handler(message: Message, state: FSMConte
     await state.set_state(AdminProductStates.sizes)
     await message.answer("5/14. Введите размеры через запятую.\nПример: <code>110, 116, 122, 128</code>\nЕсли размеров нет — отправьте '-'.", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.sizes)
 async def admin_product_sizes_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2292,6 +2446,7 @@ async def admin_product_sizes_handler(message: Message, state: FSMContext) -> No
     await state.update_data(sizes=value)
     await state.set_state(AdminProductStates.size_prices)
     await message.answer("6/14. Введите цены по размерам в формате JSON.\nПример: <code>{\"110\": 150000, \"116\": 155000, \"122\": 160000}</code>\nЕсли цены одинаковые для всех размеров — отправьте '{}'.", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.size_prices)
 async def admin_product_size_prices_handler(message: Message, state: FSMContext) -> None:
@@ -2310,6 +2465,7 @@ async def admin_product_size_prices_handler(message: Message, state: FSMContext)
     await state.set_state(AdminProductStates.size_old_prices)
     await message.answer("7/14. Введите старые цены по размерам в формате JSON (или '{}' если нет).\nПример: <code>{\"110\": 170000, \"116\": 175000}</code>", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.size_old_prices)
 async def admin_product_size_old_prices_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2327,6 +2483,7 @@ async def admin_product_size_old_prices_handler(message: Message, state: FSMCont
     await state.set_state(AdminProductStates.category_slug)
     await message.answer("8/14. Выберите раздел, куда загрузить товар.", reply_markup=admin_category_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.category_slug)
 async def admin_product_category_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2338,6 +2495,7 @@ async def admin_product_category_handler(message: Message, state: FSMContext) ->
     await state.update_data(category_slug=slug)
     await state.set_state(AdminProductStates.price)
     await message.answer(f"Выбрана категория: <b>{html.escape(category_label_human(slug, message.from_user.id))}</b>\n\n9/14. Введите базовую цену товара числом. Пример: <code>289000</code>", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.price)
 async def admin_product_price_handler(message: Message, state: FSMContext) -> None:
@@ -2351,6 +2509,7 @@ async def admin_product_price_handler(message: Message, state: FSMContext) -> No
     await state.set_state(AdminProductStates.old_price)
     await message.answer("10/14. Введите старую цену числом. Если старой цены нет — отправьте <code>0</code>", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.old_price)
 async def admin_product_old_price_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2362,6 +2521,7 @@ async def admin_product_old_price_handler(message: Message, state: FSMContext) -
     await state.update_data(old_price=value)
     await state.set_state(AdminProductStates.stock_qty)
     await message.answer("11/14. Введите остаток на складе. Пример: <code>15</code>", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.stock_qty)
 async def admin_product_stock_handler(message: Message, state: FSMContext) -> None:
@@ -2379,6 +2539,7 @@ async def admin_product_stock_handler(message: Message, state: FSMContext) -> No
         await message.answer("12/14. Отправьте новое фото товара.\n\nЛибо отправьте:\n• <code>skip</code> — оставить текущее фото\n• <code>-</code> — удалить фото", reply_markup=cancel_keyboard(message.from_user.id))
     else:
         await message.answer("12/14. Отправьте фото товара.\n\nЕсли фото пока нет — отправьте <code>-</code>", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.photo)
 async def admin_product_photo_handler(message: Message, state: FSMContext) -> None:
@@ -2406,6 +2567,7 @@ async def admin_product_photo_handler(message: Message, state: FSMContext) -> No
     await state.set_state(AdminProductStates.is_published)
     await message.answer("13/14. Публикация товара: отправьте <code>1</code> для публикации или <code>0</code> чтобы скрыть.", reply_markup=cancel_keyboard(message.from_user.id))
 
+
 @admin_router.message(AdminProductStates.is_published)
 async def admin_product_is_published_handler(message: Message, state: FSMContext) -> None:
     if await maybe_cancel_state(message, state, admin_back=True):
@@ -2417,6 +2579,7 @@ async def admin_product_is_published_handler(message: Message, state: FSMContext
     await state.update_data(is_published=value)
     await state.set_state(AdminProductStates.sort_order)
     await message.answer("14/14. Введите sort_order. Пример: <code>10</code>", reply_markup=cancel_keyboard(message.from_user.id))
+
 
 @admin_router.message(AdminProductStates.sort_order)
 async def admin_product_sort_order_handler(message: Message, state: FSMContext) -> None:
@@ -2454,6 +2617,7 @@ async def admin_product_sort_order_handler(message: Message, state: FSMContext) 
     if is_new_published:
         await notify_old_customers_about_new_product(product_id, payload["title_ru"], payload["price"])
 
+
 @admin_router.message(F.text.in_([TEXTS['ru']['admin_reviews'], TEXTS['uz']['admin_reviews']]))
 async def admin_reviews_handler(message: Message) -> None:
     if not is_admin(message.from_user.id):
@@ -2465,6 +2629,7 @@ async def admin_reviews_handler(message: Message) -> None:
         return
     for row in rows:
         await message.answer(f"⭐ <b>Отзыв #{row['id']}</b>\n\nИмя: {html.escape(row['customer_name'] or '—')}\nUsername: {mask_username(row['username'])}\nОценка: {stars_text(row['rating'])}\nСтатус: {'Опубликован' if safe_int(row['is_published']) else 'На модерации'}\n\n{html.escape(row['text'])}")
+
 
 @admin_router.message(Command("publish_review"))
 async def admin_publish_review_command(message: Message) -> None:
@@ -2482,6 +2647,7 @@ async def admin_publish_review_command(message: Message) -> None:
     conn.close()
     await message.answer(f"Отзыв #{review_id} опубликован.")
 
+
 # ============================================================
 # FALLBACK HANDLER
 # ============================================================
@@ -2490,11 +2656,122 @@ async def admin_publish_review_command(message: Message) -> None:
 async def fallback_handler(message: Message) -> None:
     await message.answer(t(message.from_user.id, "send_start_again"), reply_markup=user_main_menu(message.from_user.id))
 
+
 # ============================================================
-# WEB HTML (ИСПРАВЛЕННЫЙ)
+# WEB HTML (С ДОБАВЛЕННЫМ РАЗДЕЛОМ "О НАС")
 # ============================================================
 
 def build_shop_html() -> str:
+    # Текст "О нас" на русском и узбекском
+    about_text_ru = f"""
+    <div class="about-box">
+        <div class="about-header">
+            <div class="about-icon">✨</div>
+            <div class="about-title">О бренде {html.escape(SHOP_BRAND)}</div>
+        </div>
+        <div class="about-content">
+            <p><strong>{html.escape(SHOP_BRAND)}</strong> — это премиальный бренд одежды мирового уровня, созданный в Узбекистане.</p>
+            <p>Мы заботимся о каждой детали, чтобы вы чувствовали себя уверенно и комфортно в нашей одежде.</p>
+            <div class="about-features">
+                <div class="feature">
+                    <span class="feature-icon">🏭</span>
+                    <span>Производство с контролем качества на каждом этапе</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🧪</span>
+                    <span>Лабораторные испытания ткани — до 30 стирок без потери качества</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📋</span>
+                    <span>Работа по четким ТЗ и техническим условиям</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✅</span>
+                    <span>Сертифицированные материалы и безопасные красители</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🔬</span>
+                    <span>Каждая партия проходит проверку в лаборатории</span>
+                </div>
+            </div>
+            <div class="about-address">
+                <strong>📍 Наш адрес:</strong><br>
+                Узбекистан, город Фергана, ул. Янгиаср 164, индекс 150100
+            </div>
+            <div class="about-contact">
+                <strong>📞 Телефон для связи:</strong> {html.escape(MANAGER_PHONE)}<br>
+                <strong>💬 Telegram менеджера:</strong> {html.escape(MANAGER_TG)}
+            </div>
+        </div>
+    </div>
+    """
+    
+    about_text_uz = f"""
+    <div class="about-box">
+        <div class="about-header">
+            <div class="about-icon">✨</div>
+            <div class="about-title">{html.escape(SHOP_BRAND)} brendi haqida</div>
+        </div>
+        <div class="about-content">
+            <p><strong>{html.escape(SHOP_BRAND)}</strong> — O'zbekistonda yaratilgan jahon darajasidagi premium kiyim brendi.</p>
+            <p>Biz har bir detalga g'amxo'rlik qilamiz, shunda siz bizning kiyimlarimizda o'zingizni ishonchli va qulay his qilasiz.</p>
+            <div class="about-features">
+                <div class="feature">
+                    <span class="feature-icon">🏭</span>
+                    <span>Har bir bosqichda sifat nazorati bilan ishlab chiqarish</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🧪</span>
+                    <span>Matoning laboratoriya sinovlari — 30 martagacha yuvishda sifat saqlanadi</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📋</span>
+                    <span>Aniq texnik shartlar bo'yicha ishlash</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">✅</span>
+                    <span>Sertifikatlangan materiallar va xavfsiz bo'yoqlar</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🔬</span>
+                    <span>Har bir partiya laboratoriyada tekshiriladi</span>
+                </div>
+            </div>
+            <div class="about-address">
+                <strong>📍 Manzil:</strong><br>
+                O'zbekiston, Farg'ona shahri, Yangiasr ko'chasi 164, indeks 150100
+            </div>
+            <div class="about-contact">
+                <strong>📞 Aloqa telefoni:</strong> {html.escape(MANAGER_PHONE)}<br>
+                <strong>💬 Telegram menejer:</strong> {html.escape(MANAGER_TG)}
+            </div>
+        </div>
+    </div>
+    """
+    
+    about_text = f"""
+    <div id="aboutContainer" class="about-wrapper">
+        <div class="about-ru">{about_text_ru}</div>
+        <div class="about-uz" style="display: none;">{about_text_uz}</div>
+    </div>
+    <script>
+    function toggleAboutLanguage(lang) {{
+        const ruDiv = document.querySelector('.about-ru');
+        const uzDiv = document.querySelector('.about-uz');
+        if (lang === 'uz') {{
+            if (ruDiv) ruDiv.style.display = 'none';
+            if (uzDiv) uzDiv.style.display = 'block';
+        }} else {{
+            if (ruDiv) ruDiv.style.display = 'block';
+            if (uzDiv) uzDiv.style.display = 'none';
+        }}
+    }}
+    // Вызываем при загрузке
+    const currentLang = params.get("lang") || "ru";
+    toggleAboutLanguage(currentLang);
+    </script>
+    """
+    
     return f"""
 <!DOCTYPE html>
 <html lang="ru">
@@ -2504,55 +2781,277 @@ def build_shop_html() -> str:
 <title>{html.escape(SHOP_BRAND)}</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root {{ --bg-1: #fffaf3; --bg-2: #fff5ea; --bg-3: #fff9f5; --glass: rgba(255,255,255,.62); --glass-strong: rgba(255,255,255,.80); --line: rgba(68,120,96,.16); --text: #241b14; --muted: #7f7167; --brand: #1f4b3a; --brand-dark: #163629; --brand-mid: #2f6a53; --brand-soft: #dfeee8; --brand-soft-2: #edf7f2; --shadow: 0 18px 50px rgba(70,86,73,.10); --shadow-soft: 0 10px 28px rgba(70,86,73,.07); --radius-xl: 28px; --radius-lg: 22px; --radius-md: 16px; }}
+:root {{ 
+    --bg-1: #fffaf3; 
+    --bg-2: #fff5ea; 
+    --bg-3: #fff9f5; 
+    --glass: rgba(255,255,255,.62); 
+    --glass-strong: rgba(255,255,255,.80); 
+    --line: rgba(68,120,96,.16); 
+    --text: #241b14; 
+    --muted: #7f7167; 
+    --brand: #1f4b3a; 
+    --brand-dark: #163629; 
+    --brand-mid: #2f6a53; 
+    --brand-soft: #dfeee8; 
+    --brand-soft-2: #edf7f2; 
+    --shadow: 0 18px 50px rgba(70,86,73,.10); 
+    --shadow-soft: 0 10px 28px rgba(70,86,73,.07); 
+    --radius-xl: 28px; 
+    --radius-lg: 22px; 
+    --radius-md: 16px; 
+}}
 * {{ box-sizing: border-box; }}
 html, body {{ min-height: 100%; }}
-body {{ margin: 0; color: var(--text); font-family: Inter, Arial, Helvetica, sans-serif; background: radial-gradient(circle at 12% 12%, rgba(255,228,170,.22), transparent 22%), radial-gradient(circle at 86% 20%, rgba(196,222,210,.20), transparent 22%), radial-gradient(circle at 78% 84%, rgba(232,214,255,.12), transparent 18%), linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%); overflow-x: hidden; }}
-body::before {{ content: ""; position: fixed; inset: -15%; background: radial-gradient(circle at 30% 35%, rgba(255,255,255,.78), transparent 16%), radial-gradient(circle at 75% 22%, rgba(239,248,243,.30), transparent 17%); filter: blur(30px); pointer-events: none; z-index: 0; }}
-.flower-field {{ position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }}
-.flower {{ position: absolute; top: -12vh; will-change: transform, opacity; animation-name: daisyFall; animation-timing-function: linear; animation-iteration-count: infinite; filter: drop-shadow(0 6px 12px rgba(0,0,0,.08)); opacity: .92; }}
+body {{ 
+    margin: 0; 
+    color: var(--text); 
+    font-family: Inter, Arial, Helvetica, sans-serif; 
+    background: radial-gradient(circle at 12% 12%, rgba(255,228,170,.22), transparent 22%), 
+                radial-gradient(circle at 86% 20%, rgba(196,222,210,.20), transparent 22%), 
+                radial-gradient(circle at 78% 84%, rgba(232,214,255,.12), transparent 18%), 
+                linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 48%, var(--bg-3) 100%); 
+    overflow-x: hidden; 
+}}
+body::before {{ 
+    content: ""; 
+    position: fixed; 
+    inset: -15%; 
+    background: radial-gradient(circle at 30% 35%, rgba(255,255,255,.78), transparent 16%), 
+                radial-gradient(circle at 75% 22%, rgba(239,248,243,.30), transparent 17%); 
+    filter: blur(30px); 
+    pointer-events: none; 
+    z-index: 0; 
+}}
+.flower-field {{ 
+    position: fixed; 
+    inset: 0; 
+    pointer-events: none; 
+    overflow: hidden; 
+    z-index: 1; 
+}}
+.flower {{ 
+    position: absolute; 
+    top: -12vh; 
+    will-change: transform, opacity; 
+    animation-name: daisyFall; 
+    animation-timing-function: linear; 
+    animation-iteration-count: infinite; 
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.08)); 
+    opacity: .92; 
+}}
 .flower svg {{ display: block; width: 100%; height: 100%; }}
-@keyframes daisyFall {{ 0% {{ transform: translate3d(0, -12vh, 0) rotate(0deg) scale(var(--scale)); opacity: 0; }} 10% {{ opacity: .95; }} 100% {{ transform: translate3d(var(--drift), 112vh, 0) rotate(320deg) scale(var(--scale)); opacity: .10; }} }}
-.wrap {{ max-width: 1180px; margin: 0 auto; padding: 20px 14px 28px; position: relative; z-index: 2; }}
-.hero {{ position: relative; overflow: hidden; padding: 28px 20px 22px; border-radius: 0 0 34px 34px; background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(255,248,236,.78)), radial-gradient(circle at 82% 18%, rgba(196,222,210,.18), transparent 38%); backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); border: 1px solid rgba(255,255,255,.66); box-shadow: var(--shadow); }}
-.hero::before {{ content: ""; position: absolute; right: -50px; top: -40px; width: 240px; height: 240px; background: radial-gradient(circle, rgba(203,230,217,.18), transparent 68%); filter: blur(14px); }}
-.hero-top {{ display: flex; align-items: center; justify-content: space-between; gap: 16px; }}
+@keyframes daisyFall {{ 
+    0% {{ transform: translate3d(0, -12vh, 0) rotate(0deg) scale(var(--scale)); opacity: 0; }} 
+    10% {{ opacity: .95; }} 
+    100% {{ transform: translate3d(var(--drift), 112vh, 0) rotate(320deg) scale(var(--scale)); opacity: .10; }} 
+}}
+.wrap {{ 
+    max-width: 1280px; 
+    margin: 0 auto; 
+    padding: 20px 14px 28px; 
+    position: relative; 
+    z-index: 2; 
+}}
+.hero {{ 
+    position: relative; 
+    overflow: hidden; 
+    padding: 28px 24px 22px; 
+    border-radius: 0 0 34px 34px; 
+    background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,248,236,.86)), 
+                radial-gradient(circle at 82% 18%, rgba(196,222,210,.18), transparent 38%); 
+    backdrop-filter: blur(18px) saturate(160%); 
+    -webkit-backdrop-filter: blur(18px) saturate(160%); 
+    border: 1px solid rgba(255,255,255,.66); 
+    box-shadow: var(--shadow); 
+    margin-bottom: 20px;
+}}
+.hero::before {{ 
+    content: ""; 
+    position: absolute; 
+    right: -50px; 
+    top: -40px; 
+    width: 240px; 
+    height: 240px; 
+    background: radial-gradient(circle, rgba(203,230,217,.18), transparent 68%); 
+    filter: blur(14px); 
+}}
+.hero-top {{ 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    gap: 16px; 
+}}
 .brand-wrap {{ display: flex; flex-direction: column; gap: 8px; }}
-.brand {{ font-size: clamp(34px, 6.2vw, 50px); font-weight: 950; letter-spacing: .08em; text-transform: uppercase; line-height: .95; position: relative; display: inline-block; padding: 2px 0 6px; color: var(--brand); -webkit-text-fill-color: var(--brand); background: none; text-shadow: 0 1px 0 rgba(255,255,255,.95), 0 2px 0 rgba(235,245,240,.90), 0 4px 10px rgba(18,66,49,.18), 0 10px 18px rgba(18,66,49,.10); filter: saturate(1.05) contrast(1.04); }}
-.brand::after {{ content: ""; position: absolute; left: 4%; right: 4%; bottom: 5px; height: 10px; background: radial-gradient(circle, rgba(31,75,58,.16) 0%, rgba(31,75,58,0) 74%); filter: blur(6px); z-index: -1; pointer-events: none; }}
-.brand-sub {{ color: var(--muted); font-size: 15px; max-width: 560px; line-height: 1.45; font-weight: 500; }}
-.badge {{ min-width: 38px; height: 38px; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; color: #ffffff; font-weight: 900; font-size: 13px; background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); box-shadow: 0 12px 24px rgba(31,75,58,.24); }}
-.layout {{ display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, .95fr); gap: 16px; margin-top: 16px; }}
-.panel, .reviews-box, .social-box {{ background: var(--glass); backdrop-filter: blur(16px) saturate(165%); -webkit-backdrop-filter: blur(16px) saturate(165%); border: 1px solid rgba(255,255,255,.64); box-shadow: var(--shadow-soft); border-radius: var(--radius-xl); }}
-.panel-head {{ padding: 18px 18px 8px; font-size: 26px; font-weight: 900; }}
-.panel-sub {{ padding: 0 18px 16px; font-size: 14px; color: var(--muted); line-height: 1.5; }}
-.filters {{ display: flex; gap: 8px; flex-wrap: wrap; padding: 0 16px 14px; }}
-.filter-btn {{ border: none; cursor: pointer; padding: 10px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; background: rgba(255,255,255,.86); color: #4f4034; border: 1px solid rgba(68,120,96,.16); box-shadow: 0 6px 18px rgba(95,120,108,.07); transition: .24s ease; }}
+.brand {{ 
+    font-size: clamp(34px, 6.2vw, 52px); 
+    font-weight: 950; 
+    letter-spacing: .08em; 
+    text-transform: uppercase; 
+    line-height: .95; 
+    position: relative; 
+    display: inline-block; 
+    padding: 2px 0 6px; 
+    color: var(--brand); 
+    -webkit-text-fill-color: var(--brand); 
+    background: none; 
+    text-shadow: 0 1px 0 rgba(255,255,255,.95), 0 2px 0 rgba(235,245,240,.90), 0 4px 10px rgba(18,66,49,.18), 0 10px 18px rgba(18,66,49,.10); 
+    filter: saturate(1.05) contrast(1.04); 
+}}
+.brand-sub {{ 
+    color: var(--brand); 
+    font-size: 16px; 
+    max-width: 620px; 
+    line-height: 1.45; 
+    font-weight: 600; 
+    letter-spacing: 0.02em;
+}}
+.badge {{ 
+    min-width: 42px; 
+    height: 42px; 
+    padding: 0 14px; 
+    display: inline-flex; 
+    align-items: center; 
+    justify-content: center; 
+    border-radius: 999px; 
+    color: #ffffff; 
+    font-weight: 900; 
+    font-size: 14px; 
+    background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); 
+    box-shadow: 0 12px 24px rgba(31,75,58,.24); 
+}}
+.layout {{ 
+    display: grid; 
+    grid-template-columns: minmax(0, 1.55fr) minmax(320px, .95fr); 
+    gap: 20px; 
+    margin-top: 20px; 
+}}
+.panel, .reviews-box, .about-box {{ 
+    background: var(--glass); 
+    backdrop-filter: blur(16px) saturate(165%); 
+    -webkit-backdrop-filter: blur(16px) saturate(165%); 
+    border: 1px solid rgba(255,255,255,.64); 
+    box-shadow: var(--shadow-soft); 
+    border-radius: var(--radius-xl); 
+    overflow: hidden;
+}}
+.about-box {{
+    margin-top: 20px;
+    padding: 20px;
+}}
+.about-header {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid rgba(68,120,96,.2);
+    padding-bottom: 12px;
+}}
+.about-icon {{
+    font-size: 32px;
+}}
+.about-title {{
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--brand);
+}}
+.about-content p {{
+    margin: 12px 0;
+    line-height: 1.6;
+    color: #3a2e26;
+}}
+.about-features {{
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}}
+.feature {{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,.6);
+    border-radius: 12px;
+}}
+.feature-icon {{
+    font-size: 24px;
+    min-width: 36px;
+}}
+.about-address, .about-contact {{
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,.5);
+    border-radius: 12px;
+    line-height: 1.5;
+}}
+.panel-head {{ padding: 20px 20px 8px; font-size: 26px; font-weight: 900; }}
+.panel-sub {{ padding: 0 20px 16px; font-size: 14px; color: var(--muted); line-height: 1.5; }}
+.filters {{ display: flex; gap: 10px; flex-wrap: wrap; padding: 0 18px 16px; }}
+.filter-btn {{ 
+    border: none; 
+    cursor: pointer; 
+    padding: 10px 16px; 
+    border-radius: 999px; 
+    font-weight: 700; 
+    font-size: 13px; 
+    background: rgba(255,255,255,.86); 
+    color: #4f4034; 
+    border: 1px solid rgba(68,120,96,.16); 
+    box-shadow: 0 6px 18px rgba(95,120,108,.07); 
+    transition: .24s ease; 
+}}
 .filter-btn:hover {{ transform: translateY(-1px); }}
-.filter-btn.active {{ background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); color: #ffffff; border-color: rgba(31,75,58,.24); }}
-.catalog {{ padding: 0 14px 16px; }}
-.grid {{ display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }}
-.card {{ background: var(--glass-strong); border: 1px solid rgba(255,255,255,.74); border-radius: 22px; overflow: hidden; box-shadow: 0 14px 34px rgba(133,96,49,.08); transition: transform .28s ease, box-shadow .28s ease; }}
+.filter-btn.active {{ 
+    background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); 
+    color: #ffffff; 
+    border-color: rgba(31,75,58,.24); 
+}}
+.catalog {{ padding: 0 18px 20px; }}
+.grid {{ display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }}
+.card {{ 
+    background: var(--glass-strong); 
+    border: 1px solid rgba(255,255,255,.74); 
+    border-radius: 24px; 
+    overflow: hidden; 
+    box-shadow: 0 14px 34px rgba(133,96,49,.08); 
+    transition: transform .28s ease, box-shadow .28s ease; 
+}}
 .card:hover {{ transform: translateY(-3px); box-shadow: 0 20px 40px rgba(133,96,49,.14); }}
-.card-inner {{ padding: 14px; display: flex; flex-direction: column; gap: 12px; }}
-.photo {{ aspect-ratio: 1 / 1.08; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(247,238,231,.96)); border: 1px solid rgba(68,120,96,.10); }}
+.card-inner {{ padding: 16px; display: flex; flex-direction: column; gap: 12px; }}
+.photo {{ 
+    aspect-ratio: 1 / 1.08; 
+    border-radius: 20px; 
+    overflow: hidden; 
+    background: linear-gradient(135deg, rgba(255,255,255,.86), rgba(247,238,231,.96)); 
+    border: 1px solid rgba(68,120,96,.10); 
+}}
 .photo img {{ width: 100%; height: 100%; object-fit: cover; display: block; }}
-.photo-placeholder {{ display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #9e8f86; font-weight: 700; font-size: 15px; }}
-.card-title {{ font-size: 17px; font-weight: 900; line-height: 1.3; }}
+.photo-placeholder {{ 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 100%; 
+    height: 100%; 
+    color: #9e8f86; 
+    font-weight: 700; 
+    font-size: 15px; 
+}}
+.card-title {{ font-size: 18px; font-weight: 900; line-height: 1.3; }}
 .card-desc {{ color: var(--muted); font-size: 13px; line-height: 1.5; min-height: 40px; }}
-.price-row {{ display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }}
-.price {{ font-size: 22px; font-weight: 900; }}
+.price-row {{ display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }}
+.price {{ font-size: 24px; font-weight: 900; color: var(--brand); }}
 .old-price {{ color: #99887c; text-decoration: line-through; font-size: 13px; }}
-.meta {{ display: flex; flex-direction: column; gap: 5px; color: #6e615a; font-size: 12px; }}
-.sizes {{ display: flex; flex-wrap: wrap; gap: 7px; }}
-.size-btn {{ border: none; cursor: pointer; padding: 8px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,.86); color: #493626; border: 1px solid rgba(68,120,96,.16); transition: .2s ease; }}
+.meta {{ display: flex; flex-direction: column; gap: 6px; color: #6e615a; font-size: 12px; }}
+.sizes {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+.size-btn {{ border: none; cursor: pointer; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,.86); color: #493626; border: 1px solid rgba(68,120,96,.16); transition: .2s ease; }}
 .size-btn.active {{ background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); color: #fff; }}
-.qty-row {{ display: flex; justify-content: space-between; align-items: center; gap: 10px; }}
+.qty-row {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; }}
 .qty-box {{ display: flex; align-items: center; border-radius: 999px; background: rgba(255,255,255,.84); border: 1px solid rgba(68,120,96,.14); overflow: hidden; }}
 .qty-btn {{ width: 38px; height: 38px; border: none; background: transparent; cursor: pointer; font-size: 19px; color: #37291f; }}
-.qty-value {{ min-width: 36px; text-align: center; font-weight: 800; }}
+.qty-value {{ min-width: 40px; text-align: center; font-weight: 800; }}
 .action-row {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }}
-.buy-btn, .quick-btn, .checkout-btn, .clear-btn {{ border: none; cursor: pointer; border-radius: 16px; padding: 13px 14px; font-weight: 800; font-size: 14px; transition: transform .22s ease, box-shadow .22s ease, opacity .22s ease; }}
+.buy-btn, .quick-btn, .checkout-btn, .clear-btn {{ border: none; cursor: pointer; border-radius: 16px; padding: 13px 14px; font-weight: 800; font-size: 14px; transition: transform .22s ease, box-shadow .22s ease; }}
 .buy-btn:hover, .quick-btn:hover, .checkout-btn:hover, .clear-btn:hover {{ transform: translateY(-1px); }}
 .buy-btn {{ background: #181311; color: #fff; box-shadow: 0 12px 24px rgba(0,0,0,.12); }}
 .quick-btn {{ background: linear-gradient(180deg, var(--brand-mid), var(--brand-dark)); color: #fff; box-shadow: 0 12px 24px rgba(31,75,58,.20); }}
@@ -2594,7 +3093,7 @@ body::before {{ content: ""; position: fixed; inset: -15%; background: radial-gr
     <div class="hero-top">
       <div class="brand-wrap">
         <div class="brand">{html.escape(SHOP_BRAND)}</div>
-        <div class="brand-sub" id="heroSub">Премиальный магазин внутри Telegram</div>
+        <div class="brand-sub" id="heroSub">✨ Премиальный бренд мирового уровня в Узбекистане</div>
       </div>
       <div class="badge" id="cartBadge">0</div>
     </div>
@@ -2626,6 +3125,7 @@ body::before {{ content: ""; position: fixed; inset: -15%; background: radial-gr
       </div>
     </div>
   </div>
+  {about_text}
   <div class="reviews-box">
     <div class="reviews-title" id="reviewsTitle">Отзывы покупателей</div>
     <div class="reviews-list" id="reviewsList"></div>
@@ -2642,8 +3142,8 @@ if (tg) {{ tg.ready(); tg.expand(); }}
 const params = new URLSearchParams(window.location.search);
 const lang = params.get("lang") || "ru";
 const I18N = {{
-  ru: {{ heroSub: "Премиальный магазин внутри Telegram", catalogTitle: "Каталог", catalogSub: "Выберите размер, количество и добавьте товар в корзину или купите сразу.", cartTitle: "Корзина", cartEmpty: "Ваша корзина пуста", summaryQtyLabel: "Всего товаров", summaryAmountLabel: "Сумма", checkoutBoxTitle: "Оформление заказа", checkoutBoxText: "Сначала добавьте товары в корзину. Затем нажмите кнопку ниже и бот продолжит оформление заказа.", checkoutBtn: "Оформить через бот", clearBtn: "Очистить корзину", addToCart: "В корзину", buyNow: "Купить сейчас", sizes: "Размеры", stock: "Остаток", qty: "Кол-во", added: "Товар добавлен в корзину", removed: "Позиция удалена", cleared: "Корзина очищена", chooseSize: "Выберите размер", noProducts: "Товаров пока нет", noPhoto: "Без фото", startCheckoutMsg: "Вернитесь в чат бота и продолжите оформление.", reviewsTitle: "Отзывы покупателей", noReviews: "Пока отзывов нет", socialTitle: "Наши каналы", category_all: "Все", category_new: "Новинки", category_hits: "Хиты", category_sale: "Скидки", category_limited: "Лимит", category_school: "Школа", category_casual: "Повседневное" }},
-  uz: {{ heroSub: "Telegram ichidagi premium do'kon", catalogTitle: "Katalog", catalogSub: "O'lcham va sonni tanlab mahsulotni savatchaga qo'shing yoki darhol sotib oling.", cartTitle: "Savatcha", cartEmpty: "Savatchangiz bo'sh", summaryQtyLabel: "Jami mahsulot", summaryAmountLabel: "Summa", checkoutBoxTitle: "Buyurtma rasmiylashtirish", checkoutBoxText: "Avval mahsulotlarni savatchaga qo'shing. Keyin tugmani bosing va bot buyurtmani davom ettiradi.", checkoutBtn: "Bot orqali rasmiylashtirish", clearBtn: "Savatchani tozalash", addToCart: "Savatchaga", buyNow: "Hozir sotib olish", sizes: "O'lchamlar", stock: "Qoldiq", qty: "Soni", added: "Mahsulot savatchaga qo'shildi", removed: "Pozitsiya o'chirildi", cleared: "Savatcha tozalandi", chooseSize: "O'lchamni tanlang", noProducts: "Hozircha mahsulotlar yo'q", noPhoto: "Rasmsiz", startCheckoutMsg: "Bot chatiga qaytib buyurtmani davom ettiring.", reviewsTitle: "Xaridorlar sharhlari", noReviews: "Hozircha sharhlar yo'q", socialTitle: "Kanallarimiz", category_all: "Barchasi", category_new: "Yangi", category_hits: "Xitlar", category_sale: "Chegirma", category_limited: "Limit", category_school: "Maktab", category_casual: "Kundalik" }}
+  ru: {{ heroSub: "✨ Премиальный бренд мирового уровня в Узбекистане", catalogTitle: "Каталог", catalogSub: "Выберите размер, количество и добавьте товар в корзину или купите сразу.", cartTitle: "Корзина", cartEmpty: "Ваша корзина пуста", summaryQtyLabel: "Всего товаров", summaryAmountLabel: "Сумма", checkoutBoxTitle: "Оформление заказа", checkoutBoxText: "Сначала добавьте товары в корзину. Затем нажмите кнопку ниже и бот продолжит оформление заказа.", checkoutBtn: "Оформить через бот", clearBtn: "Очистить корзину", addToCart: "В корзину", buyNow: "Купить сейчас", sizes: "Размеры", stock: "Остаток", qty: "Кол-во", added: "Товар добавлен в корзину", removed: "Позиция удалена", cleared: "Корзина очищена", chooseSize: "Выберите размер", noProducts: "Товаров пока нет", noPhoto: "Без фото", startCheckoutMsg: "Вернитесь в чат бота и продолжите оформление.", reviewsTitle: "Отзывы покупателей", noReviews: "Пока отзывов нет", socialTitle: "Наши каналы", category_all: "Все", category_new: "Новинки", category_hits: "Хиты", category_sale: "Скидки", category_limited: "Лимит", category_school: "Школа", category_casual: "Повседневное" }},
+  uz: {{ heroSub: "✨ O'zbekistondagi jahon darajasidagi premium brend", catalogTitle: "Katalog", catalogSub: "O'lcham va sonni tanlab mahsulotni savatchaga qo'shing yoki darhol sotib oling.", cartTitle: "Savatcha", cartEmpty: "Savatchangiz bo'sh", summaryQtyLabel: "Jami mahsulot", summaryAmountLabel: "Summa", checkoutBoxTitle: "Buyurtma rasmiylashtirish", checkoutBoxText: "Avval mahsulotlarni savatchaga qo'shing. Keyin tugmani bosing va bot buyurtmani davom ettiradi.", checkoutBtn: "Bot orqali rasmiylashtirish", clearBtn: "Savatchani tozalash", addToCart: "Savatchaga", buyNow: "Hozir sotib olish", sizes: "O'lchamlar", stock: "Qoldiq", qty: "Soni", added: "Mahsulot savatchaga qo'shildi", removed: "Pozitsiya o'chirildi", cleared: "Savatcha tozalandi", chooseSize: "O'lchamni tanlang", noProducts: "Hozircha mahsulotlar yo'q", noPhoto: "Rasmsiz", startCheckoutMsg: "Bot chatiga qaytib buyurtmani davom ettiring.", reviewsTitle: "Xaridorlar sharhlari", noReviews: "Hozircha sharhlar yo'q", socialTitle: "Kanallarimiz", category_all: "Barchasi", category_new: "Yangi", category_hits: "Xitlar", category_sale: "Chegirma", category_limited: "Limit", category_school: "Maktab", category_casual: "Kundalik" }}
 }};
 const TXT = I18N[lang] || I18N.ru;
 const state = {{ products: [], filteredProducts: [], cart: [], reviews: [], activeCategory: "all" }};
@@ -2894,18 +3394,32 @@ renderSocials();
 loadProducts();
 loadCart();
 loadReviews();
+function toggleAboutLanguage(lang) {{
+  const ruDiv = document.querySelector('.about-ru');
+  const uzDiv = document.querySelector('.about-uz');
+  if (lang === 'uz') {{
+    if (ruDiv) ruDiv.style.display = 'none';
+    if (uzDiv) uzDiv.style.display = 'block';
+  }} else {{
+    if (ruDiv) ruDiv.style.display = 'block';
+    if (uzDiv) uzDiv.style.display = 'none';
+  }}
+}}
+toggleAboutLanguage(lang);
 </script>
 </body>
 </html>
 """
 
+
 # ============================================================
-# WEB ROUTES (ИСПРАВЛЕННЫЕ С БЕЗОПАСНОСТЬЮ)
+# WEB ROUTES
 # ============================================================
 
 @web_router.get("/shop")
 async def shop_page(request: web.Request) -> web.Response:
     return web.Response(text=build_shop_html(), content_type="text/html")
+
 
 @web_router.get("/api/shop/products")
 async def api_shop_products(request: web.Request) -> web.Response:
@@ -2917,6 +3431,7 @@ async def api_shop_products(request: web.Request) -> web.Response:
         result.append(product_row_to_api_dict(row, lang, photo_url=photo_url))
     return web.json_response(result)
 
+
 @web_router.get("/api/shop/cart")
 async def api_shop_cart(request: web.Request) -> web.Response:
     user_id = get_user_id_from_request(request)
@@ -2924,15 +3439,14 @@ async def api_shop_cart(request: web.Request) -> web.Response:
         return web.json_response({"items": [], "total_qty": 0, "total_amount": 0})
     return web.json_response(cart_items_api(user_id))
 
+
 @web_router.post("/api/cart/add")
 async def api_cart_add(request: web.Request) -> web.Response:
-    """API для добавления в корзину из WebApp"""
     try:
         body = await request.json()
     except:
         return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
     
-    # Проверка авторизации
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     validated = validate_telegram_init_data(init_data)
     if not validated:
@@ -2949,15 +3463,14 @@ async def api_cart_add(request: web.Request) -> web.Response:
     ok, key = add_to_cart(user_id=user_id, product_id=product_id, qty=qty, size=size)
     return web.json_response({"success": ok, "message": key})
 
+
 @web_router.post("/api/cart/remove")
 async def api_cart_remove(request: web.Request) -> web.Response:
-    """API для удаления из корзины из WebApp"""
     try:
         body = await request.json()
     except:
         return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
     
-    # Проверка авторизации
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     validated = validate_telegram_init_data(init_data)
     if not validated:
@@ -2969,7 +3482,6 @@ async def api_cart_remove(request: web.Request) -> web.Response:
     if not cart_id:
         return web.json_response({"success": False, "error": "Missing cart_id"}, status=400)
     
-    # Проверяем, что cart_item принадлежит пользователю
     conn = get_db()
     row = conn.execute("SELECT id FROM carts WHERE id = ? AND user_id = ?", (cart_id, user_id)).fetchone()
     conn.close()
@@ -2980,15 +3492,14 @@ async def api_cart_remove(request: web.Request) -> web.Response:
     ok = remove_cart_item(cart_id, user_id)
     return web.json_response({"success": ok})
 
+
 @web_router.post("/api/cart/clear")
 async def api_cart_clear(request: web.Request) -> web.Response:
-    """API для очистки корзины из WebApp"""
     try:
         body = await request.json()
     except:
         return web.json_response({"success": False, "error": "Invalid JSON"}, status=400)
     
-    # Проверка авторизации
     init_data = request.headers.get("X-Telegram-Init-Data", "")
     validated = validate_telegram_init_data(init_data)
     if not validated:
@@ -2998,17 +3509,20 @@ async def api_cart_clear(request: web.Request) -> web.Response:
     clear_cart_for_user(user_id)
     return web.json_response({"success": True})
 
+
 @web_router.get("/api/shop/reviews")
 async def api_shop_reviews(request: web.Request) -> web.Response:
     rows = get_published_reviews(limit=12)
     return web.json_response([{"id": row["id"], "customer_name": row["customer_name"] or "Клиент", "rating": safe_int(row["rating"], 5), "stars": stars_text(row["rating"]), "text": row["text"] or "", "created_at": row["created_at"]} for row in rows])
 
+
 @web_router.get("/health")
 async def health_route(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok"})
 
+
 # ============================================================
-# PAYMENT ROUTES (БЕЗОПАСНЫЕ)
+# PAYMENT ROUTES
 # ============================================================
 
 @web_router.get("/pay/click/{order_id}")
@@ -3018,12 +3532,11 @@ async def pay_click_route(request: web.Request) -> web.Response:
     if not order:
         return web.Response(text="<html><body><h1>Order not found</h1></body></html>", content_type="text/html", status=404)
     
-    # Проверка, что заказ не оплачен и принадлежит пользователю
     if order["payment_status"] == "paid":
         return web.Response(text=f"<html><body><h1>Order #{order_id} already paid</h1></body></html>", content_type="text/html")
     
-    # TODO: Интеграция с Click API
     return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Click payment</h2><p>Order ID: <b>{order_id}</b></p><p>Amount: {fmt_sum(order['total_amount'])}</p><p>Сюда подключается интеграция Click.</p></body></html>", content_type="text/html")
+
 
 @web_router.get("/pay/payme/{order_id}")
 async def pay_payme_route(request: web.Request) -> web.Response:
@@ -3032,22 +3545,19 @@ async def pay_payme_route(request: web.Request) -> web.Response:
     if not order:
         return web.Response(text="<html><body><h1>Order not found</h1></body></html>", content_type="text/html", status=404)
     
-    # Проверка, что заказ не оплачен
     if order["payment_status"] == "paid":
         return web.Response(text=f"<html><body><h1>Order #{order_id} already paid</h1></body></html>", content_type="text/html")
     
-    # TODO: Интеграция с Payme API
     return web.Response(text=f"<html><body style='font-family:Arial;padding:30px;background:#fff8f2'><h2>Payme payment</h2><p>Order ID: <b>{order_id}</b></p><p>Amount: {fmt_sum(order['total_amount'])}</p><p>Сюда подключается интеграция Payme.</p></body></html>", content_type="text/html")
+
 
 @web_router.post("/webhook/click")
 async def webhook_click_route(request: web.Request) -> web.Response:
-    """Webhook для Click - idempotent"""
     try:
         body = await request.json()
     except:
         return web.json_response({"error": "Invalid JSON"}, status=400)
     
-    # TODO: Реализовать проверку подписи Click
     order_id = safe_int(body.get("order_id"))
     payment_status = body.get("payment_status")
     
@@ -3059,15 +3569,14 @@ async def webhook_click_route(request: web.Request) -> web.Response:
     
     return web.json_response({"status": "ok"})
 
+
 @web_router.post("/webhook/payme")
 async def webhook_payme_route(request: web.Request) -> web.Response:
-    """Webhook для Payme - idempotent"""
     try:
         body = await request.json()
     except:
         return web.json_response({"error": "Invalid JSON"}, status=400)
     
-    # TODO: Реализовать проверку подписи Payme
     order_id = safe_int(body.get("order_id"))
     payment_status = body.get("payment_status")
     
@@ -3078,6 +3587,7 @@ async def webhook_payme_route(request: web.Request) -> web.Response:
             send_payment_status_notification(order["user_id"], order_id, "paid")
     
     return web.json_response({"status": "ok"})
+
 
 # ============================================================
 # WEB ADMIN
@@ -3103,9 +3613,11 @@ button {{ width:100%; padding:14px; background:linear-gradient(180deg,#1f4b3a,#1
 </html>
 """
 
+
 @web_router.get("/admin/login")
 async def admin_login_page_route(request: web.Request) -> web.Response:
     return web.Response(text=admin_login_page(), content_type="text/html")
+
 
 @web_router.post("/admin/login")
 async def admin_login_post_route(request: web.Request) -> web.Response:
@@ -3127,6 +3639,7 @@ async def admin_login_post_route(request: web.Request) -> web.Response:
     response.set_cookie("admin_session", session_id, httponly=True, secure=True, max_age=28800, samesite="Lax")
     return response
 
+
 def verify_web_admin_session(request: web.Request) -> bool:
     session_id = request.cookies.get("admin_session", "")
     if not session_id:
@@ -3144,6 +3657,7 @@ def verify_web_admin_session(request: web.Request) -> bool:
         conn.close()
         return False
     return True
+
 
 def admin_page_template(title: str, body: str) -> str:
     return f"""
@@ -3179,6 +3693,7 @@ th {{ background:#faf4ea; }}
 </html>
 """
 
+
 @web_router.get("/admin/dashboard")
 async def admin_dashboard_route(request: web.Request) -> web.Response:
     if not verify_web_admin_session(request):
@@ -3186,6 +3701,7 @@ async def admin_dashboard_route(request: web.Request) -> web.Response:
     stats = get_basic_stats()
     body = f'<div class="stats"><div class="stat"><div class="stat-label">Всего заказов</div><div class="stat-value">{stats["total_orders"]}</div></div><div class="stat"><div class="stat-label">Новые</div><div class="stat-value">{stats["new"]}</div></div><div class="stat"><div class="stat-label">В обработке</div><div class="stat-value">{stats["processing"]}</div></div><div class="stat"><div class="stat-label">Подтверждённые</div><div class="stat-value">{stats["confirmed"]}</div></div><div class="stat"><div class="stat-label">Оплаченные</div><div class="stat-value">{stats["paid"]}</div></div><div class="stat"><div class="stat-label">Пользователи</div><div class="stat-value">{stats["users"]}</div></div><div class="stat"><div class="stat-label">Товары</div><div class="stat-value">{stats["products"]}</div></div><div class="stat"><div class="stat-label">Отзывы</div><div class="stat-value">{stats["reviews"]}</div></div></div>'
     return web.Response(text=admin_page_template("Admin dashboard", body), content_type="text/html")
+
 
 @web_router.get("/admin/orders")
 async def admin_orders_route(request: web.Request) -> web.Response:
@@ -3200,6 +3716,7 @@ async def admin_orders_route(request: web.Request) -> web.Response:
     body = "<div class='card'><table><thead><tr><th>ID</th><th>Клиент</th><th>Telegram</th><th>Город</th><th>Доставка</th><th>Оплата</th><th>Сумма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
     return web.Response(text=admin_page_template("Admin orders", body), content_type="text/html")
 
+
 @web_router.get("/admin/products")
 async def admin_products_route(request: web.Request) -> web.Response:
     if not verify_web_admin_session(request):
@@ -3210,6 +3727,7 @@ async def admin_products_route(request: web.Request) -> web.Response:
         table_rows.append(f"<tr><td>#{row['id']}</td><td>{html.escape(row['title_ru'])}</td><td>{html.escape(row['title_uz'])}</td><td>{html.escape(row['category_slug'])}</td><td>{fmt_sum(row['price'])}</td><td>{fmt_sum(row['old_price']) if safe_int(row['old_price']) > 0 else '—'}</td><td>{html.escape(row['sizes'] or '—')}</td><td>{row['stock_qty']}</td><td>{'Да' if safe_int(row['is_published']) else 'Нет'}</td><td>{row['sort_order']}</td></tr>")
     body = "<div class='card'><table><thead><tr><th>ID</th><th>Title RU</th><th>Title UZ</th><th>Category</th><th>Price</th><th>Old price</th><th>Sizes</th><th>Stock</th><th>Published</th><th>Sort</th></tr></thead><tbody>" + "".join(table_rows) + "</tbody></table></div>"
     return web.Response(text=admin_page_template("Admin products", body), content_type="text/html")
+
 
 @web_router.get("/admin/reviews")
 async def admin_reviews_route(request: web.Request) -> web.Response:
@@ -3223,6 +3741,7 @@ async def admin_reviews_route(request: web.Request) -> web.Response:
         blocks.append(f"<div class='review-card'><div><b>{stars_text(row['rating'])}</b></div><div style='margin:8px 0 6px;font-weight:800'>{html.escape(row['customer_name'] or '—')} | {mask_username(row['username'])}</div><div>{html.escape(row['text'] or '')}</div><div class='muted' style='margin-top:8px'>ID: #{row['id']} | {'Опубликован' if safe_int(row['is_published']) else 'На модерации'} | {row['created_at']}</div></div>")
     return web.Response(text=admin_page_template("Admin reviews", "<div class='card'>" + "".join(blocks) + "</div>"), content_type="text/html")
 
+
 @web_router.get("/admin/logout")
 async def admin_logout_route(request: web.Request) -> web.Response:
     session_id = request.cookies.get("admin_session", "")
@@ -3235,6 +3754,7 @@ async def admin_logout_route(request: web.Request) -> web.Response:
     response.del_cookie("admin_session")
     return response
 
+
 # ============================================================
 # APP / STARTUP
 # ============================================================
@@ -3244,6 +3764,7 @@ def create_web_app() -> web.Application:
     app.add_routes(web_router)
     return app
 
+
 def register_routers() -> None:
     dp.include_router(user_router)
     dp.include_router(cart_router)
@@ -3252,6 +3773,7 @@ def register_routers() -> None:
     dp.include_router(reviews_router)
     dp.include_router(admin_router)
     dp.include_router(fallback_router)
+
 
 async def remind_admins_about_unseen_orders_loop() -> None:
     while True:
@@ -3270,6 +3792,7 @@ async def remind_admins_about_unseen_orders_loop() -> None:
         except Exception:
             logger.exception("remind_admins_about_unseen_orders_loop error")
 
+
 async def main() -> None:
     init_db()
     register_routers()
@@ -3282,6 +3805,7 @@ async def main() -> None:
     asyncio.create_task(remind_admins_about_unseen_orders_loop())
     logger.info("Bot polling started")
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
